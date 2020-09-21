@@ -1,0 +1,25 @@
+body {
+   width: 100%;
+   height: 90%;
+}
+
+#opt_box {
+   padding-left: 1%;
+   margin-left: 1%;
+   height: 100%;
+   width: 20%;
+   border-style: solid;
+   float: left;
+}
+
+#display {
+   width: 75%;
+   height: 100%;
+   float: right;
+}
+
+#mainBoard {
+   width: 50%;
+   height: 50%;
+   float: left;
+}

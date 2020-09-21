@@ -1,0 +1,71 @@
+<html>
+ 
+<head>
+  <link rel="stylesheet" href="css/style.css"/>
+  <link rel="stylesheet" href="css/chessboard-1.0.0.css"/>
+  <title>Chess Sonifier 0.1</title>
+  <script src='https://surikov.github.io/webaudiofontdata/sound/0320_Chaos_sf2_file.js'></script>
+  <script src='https://surikov.github.io/webaudiofontdata/sound/12842_6_JCLive_sf2_file.js'></script>
+  <script type="text/javascript" src="js/WebAudioFontPlayer.js"></script>
+  <script type="text/javascript" src="js/jquery-3.5.0.js"></script>
+  <script type="text/javascript" src="js/chess.js"></script>
+  <script type="text/javascript" src="js/chessboard-1.0.0.js"></script>
+ </head>
+ 
+ <body>
+
+    <div id = "opt_box">
+
+        <div id = "timbre_box"> </div>
+
+        <label for="select_mode"> Modes: </label> <br>
+        <select id="select_mode" onchange="setMode()">
+            <option selected> Ionian </option>
+            <option> Dorian </option>
+            <option> Phrygian </option>
+            <option> Lydian </option>
+            <option> Mixolydian </option>
+            <option> Aeolian </option>
+            <option> Locrian </option>
+            <option> Blues </option>
+            <option> Chromatic </option>
+        </select>
+        <br><br>
+
+        <label for="pgnBox">PGN (Portable Game Notation) text:</label><br>
+        <textarea id="pgnBox" rows="16" cols="50">
+[Event "20th Montcada Open"]
+[Site "Montcada i Reixac ESP"]
+[Date "2012.06.25"]
+[EventDate "2012.06.25"]
+[Round "1.4"]
+[Result "0-1"]
+[White "Daniel Navarro Lopez-Menchero"]
+[Black "Levan Aroshidze"]
+[ECO "B48"]
+[WhiteElo "2230"]
+[BlackElo "2582"]
+[PlyCount "60"]
+
+1. e4 c5 2. Nf3 e6 3. d4 cxd4 4. Nxd4 Nc6 5. Nc3 Qc7 6. Be3 a6
+7. Qd2 Nf6 8. f3 Ne5 9. g4 h6 10. g5 hxg5 11. Bxg5 b5
+12. O-O-O Bb7 13. Kb1 b4 14. Nce2 Rc8 15. Ng3 Nxf3 16. Nxf3
+Nxe4 17. Nxe4 Bxe4 18. Be2 b3 19. Rc1 bxc2+ 20. Ka1 Qb7
+21. Rhf1 f6 22. Bf4 Rh3 23. Bg3 Rh5 24. Bd3 Rf5 25. Bxe4 Qxe4
+26. Qe1 Qa4 27. Qe3 Ra5 28. a3 Bxa3 29. bxa3 Qb4 30. Ka2 Rc3
+0-1
+        </textarea>
+        <br><br>
+        <button type="button" id="start_butt" value = "start" onclick="playGame()"> Start </button>
+        <button type="button" id="rnd_butt" value = "randomize" onclick="rndOrch(false)"> Randomize </button>
+        <button type="button" id="def_butt" value = "defaults" onclick="rndOrch(true)"> Defaults </button>
+    </div>
+
+  <div id="display">
+    <div id="mainBoard" ></div>
+  </div>
+
+ <script type="text/javascript" src="js/chess_sonifier.js"></script>
+ </body>
+
+</html>
