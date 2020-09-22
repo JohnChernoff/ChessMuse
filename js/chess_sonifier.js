@@ -17,6 +17,7 @@ const game = new Chess();
 const board = Chessboard('mainBoard', 'start')
 let moves, move_num;
 let tempo = 500;
+let volume = .075;
 let current_octave = 64;
 let playing = false;
 
@@ -32,6 +33,8 @@ window.onload = function() {
         loadInstrument(INSTRUMENTS[i]);
     }
     setMode();
+    setTempo();
+    setVolume();
 }
 
 function rndOrch(def) {
@@ -65,7 +68,6 @@ function nextMove() {  //console.log("Playing: " + moves[move_num].from + moves[
     board.position(game.fen());
 
     let t = tempo/1000;
-    let volume = .125;
     let pitches = getPitches(moves[move_num]);
     if (moves[move_num].captured) {
         let dur = t * ((nextCapture() - move_num)+1);
@@ -85,17 +87,20 @@ function nextMove() {  //console.log("Playing: " + moves[move_num].from + moves[
     else {
         if (moves[move_num].piece === "p") {
             current_octave = pitches[3] * 12; //console.log("Octave Change: " + current_octave);
+            playNote(orchestra[moves[move_num].piece],0,current_octave + mode[pitches[3]],t,volume);
         }
         else {
+            playNote(orchestra[moves[move_num].piece],0,current_octave + mode[pitches[2]],t,volume);
             playNote(orchestra[moves[move_num].piece],
-                audioContext.currentTime + t/2,current_octave + mode[pitches[2]],t/2,volume);
+                audioContext.currentTime + t/2,current_octave + mode[pitches[3]],t/2,volume);
         }
-        playNote(orchestra[moves[move_num].piece],
-            0,current_octave + mode[pitches[3]],t,volume);
     }
 
     if (playing && ++move_num < moves.length) window.setTimeout(nextMove,tempo);
-    else playing = false;
+    else {
+        player.cancelQueue(audioContext)
+        setPlaying(false);
+    }
 }
 
 function playNote(i,t,p,d,v) {
@@ -162,4 +167,16 @@ function loadInstrument(type) {
 
 function setMode() {
     mode = MODES[document.getElementById("select_mode").selectedIndex]; //console.log("New Mode: " + mode);
+}
+
+function setTempo() {
+    let e = document.getElementById("range_tempo");
+    tempo = 60000/e.value; //console.log("New Tempo: " + tempo);
+    document.getElementById("lab_tempo").innerText = "Tempo: " + e.value;
+}
+
+function setVolume() {
+    let e = document.getElementById("range_volume");
+    volume = e.value/1000; console.log("New Volume: " + volume);
+    document.getElementById("lab_volume").innerText = "Volume: " + e.value + "%";
 }

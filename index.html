@@ -1,4 +1,4 @@
-<html>
+<html xmlns="http://www.w3.org/1999/html">
  
 <head>
   <link rel="stylesheet" href="css/style.css"/>
@@ -30,10 +30,18 @@
             <option> Blues </option>
             <option> Chromatic </option>
         </select>
+
+        <br> <br>
+        <label id="lab_tempo" for="range_tempo"> Tempo: 120 </label> <br>
+        <input id="range_tempo" type="range" min="12" max="240" value="120" onchange="setTempo()" >
+        <br><br>
+
+        <label id="lab_volume" for="range_volume"> Volume: 50% </label> <br>
+        <input id="range_volume" type="range" min="1" max="100" value="50" onchange="setVolume()" >
         <br><br>
 
         <label for="pgnBox">PGN (Portable Game Notation) text:</label><br>
-        <textarea id="pgnBox" rows="16" cols="50">
+        <textarea id="pgnBox" rows="12" cols="50">
 [Event "20th Montcada Open"]
 [Site "Montcada i Reixac ESP"]
 [Date "2012.06.25"]
