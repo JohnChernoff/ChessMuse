@@ -46,6 +46,7 @@ function rndOrch(def) {
 }
 
 function playGame() {
+    player.cancelQueue(audioContext);
     if (!playing) {
         game.load_pgn(document.getElementById("pgnBox").value);
         moves = game.history({ verbose: true }); //console.log(moves);
@@ -66,9 +67,11 @@ function setPlaying(bool) {
 function nextMove() {  //console.log("Playing: " + moves[move_num].from + moves[move_num].to);
     game.move(moves[move_num]);
     board.position(game.fen());
-
-    let t = tempo/1000;
     let pitches = getPitches(moves[move_num]);
+    let dist = calcDist(pitches[0],pitches[1],pitches[2],pitches[3]); //console.log("Distance:  " + dist);
+    let adj_tempo = (tempo/2) * Math.floor(dist);
+    let t = adj_tempo/1000;
+
     if (moves[move_num].captured) {
         let dur = t * ((nextCapture() - move_num)+1);
         let p = pitches[2] + pitches[3]; if (p > 12) p = 12;
@@ -96,11 +99,12 @@ function nextMove() {  //console.log("Playing: " + moves[move_num].from + moves[
         }
     }
 
-    if (playing && ++move_num < moves.length) window.setTimeout(nextMove,tempo);
-    else {
-        player.cancelQueue(audioContext)
-        setPlaying(false);
-    }
+    if (playing && ++move_num < moves.length) window.setTimeout(nextMove,adj_tempo) ;
+    else setPlaying(false);
+}
+
+function calcDist(x1,y1,x2,y2) {
+    return Math.sqrt(Math.pow(Math.abs(x1-x2),2) + Math.pow(Math.abs(y1-y2),2));
 }
 
 function playNote(i,t,p,d,v) {
