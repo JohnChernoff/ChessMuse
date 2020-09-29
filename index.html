@@ -13,35 +13,19 @@
  </head>
  
  <body>
-
     <div id = "opt_box">
-
         <div id = "timbre_box"> </div>
-
-        <label for="select_mode"> Modes: </label> <br>
-        <select id="select_mode" onchange="setMode()">
-            <option selected> Ionian </option>
-            <option> Dorian </option>
-            <option> Phrygian </option>
-            <option> Lydian </option>
-            <option> Mixolydian </option>
-            <option> Aeolian </option>
-            <option> Locrian </option>
-            <option> Blues </option>
-            <option> Chromatic </option>
-        </select>
-
-        <br> <br>
+        <input type="checkbox" id="chk_harmony">
+        <label for="chk_harmony"> Dense Harmonies </label>
+        <br><br>
         <label id="lab_tempo" for="range_tempo"> Tempo: 120 </label> <br>
         <input id="range_tempo" type="range" min="12" max="240" value="120" onchange="setTempo()" >
         <br><br>
-
         <label id="lab_volume" for="range_volume"> Volume: 50% </label> <br>
         <input id="range_volume" type="range" min="1" max="100" value="50" onchange="setVolume()" >
         <br><br>
-
         <label for="pgnBox">PGN (Portable Game Notation) text:</label><br>
-        <textarea id="pgnBox" rows="12" cols="50">
+        <textarea id="pgnBox" rows="24" cols="50">
 [Event "20th Montcada Open"]
 [Site "Montcada i Reixac ESP"]
 [Date "2012.06.25"]
@@ -64,9 +48,15 @@ Nxe4 17. Nxe4 Bxe4 18. Be2 b3 19. Rc1 bxc2+ 20. Ka1 Qb7
 0-1
         </textarea>
         <br><br>
+        <label for="fenBox">FEN (Forsyth-Edwards Notation) position:</label><br>
+        <textarea id="fenBox" rows="2" cols="50">
+r1bqk2r/pppnppbp/3p1np1/8/2BP1P2/4PN2/PPP3PP/RNBQK2R w KQkq - 5 6
+        </textarea>
+        <br><br>
         <button type="button" id="start_butt" value = "start" onclick="playGame()"> Start </button>
-        <button type="button" id="rnd_butt" value = "randomize" onclick="rndOrch(false)"> Randomize </button>
-        <button type="button" id="def_butt" value = "defaults" onclick="rndOrch(true)"> Defaults </button>
+        <button type="button" id="rnd_butt" value = "randomize" onclick="randomOrchestra(false)"> Randomize </button>
+        <button type="button" id="def_butt" value = "defaults" onclick="randomOrchestra(true)"> Defaults </button>
+        <button type="button" id="def_fen" value = "defaults" onclick="playFEN()"> Play FEN </button>
     </div>
 
   <div id="display">
