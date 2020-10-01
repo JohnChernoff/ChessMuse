@@ -16,7 +16,7 @@ const TRIPLET = -3, DUPLE = -2, QUARTER = 1;
 const RHYTHMS = [TRIPLET,DUPLE,QUARTER,2,3,4,6,8,12,16,24,36];
 const MOVE="Move", PAWN_STR="Pawn", CAPTURE="Capture", HARMONY = "Harmony", RHYTHM = "Rhythm";
 const INSTRUMENTS = [MOVE,PAWN_STR,CAPTURE,HARMONY, RHYTHM];
-const DEFAULT_INSTRUMENTS = [70,53,44,45,1];
+const DEFAULT_INSTRUMENTS = [70,46,44,45,12];
 const orchestra = [];
 const game = new Chess();
 const board = Chessboard('mainBoard', 'start')
@@ -64,8 +64,19 @@ function pieceColor(piece) {
     return piece > PIECE_CODE.indexOf("k") ? "w" : "b";
 }
 
+function runFEN(e) {
+    let fen_box = document.getElementById("fenBox");
+    if (!fen_loop) {
+        fen_loop = true; playFEN(fen_box.value,true); e.innerText = "Stop FEN";
+    }
+    else {
+        player.cancelQueue(audioContext);
+        e.innerText = "Play FEN"; fen_loop = false;
+    }
+}
+
 function playPGNRhythm(piece_type,piece_color,file,rank,pawn_count,pawn_move,turn) {
-    let eights = (tempo/1000) / 8;
+    let eights = (tempo/1000) / 4;
     let adj_rank = piece_color === "w" ? 7-rank : rank; //descriptive style ranks
     if (piece_type === PAWN) {
         if (pawn_move && adj_rank > 1) {
@@ -73,20 +84,12 @@ function playPGNRhythm(piece_type,piece_color,file,rank,pawn_count,pawn_move,tur
             (tempo/1000) * nextPawnMove(),volume);
         }
     }
-    else if (piece_color === turn) {  //console.log(" rank: " + adj_rank + ", file: " + file);
-        playNote(orchestra[RHYTHM],audioContext.currentTime + (eights * file),
-            (piece_type * 2) + (piece_color === "b" ? 1 : 0) + (12 * adj_rank) + 24, eights, volume);
-    }
-}
-
-function runFEN(e) {
-    let fen_box = document.getElementById("fenBox");
-    if (!fen_loop) {
-        fen_loop = true; playFEN(fen_box.value,true); e.innerText = "Stop FEN";
-    }
-    else {
-        //player.cancelQueue(audioContext);
-        e.innerText = "Play FEN"; fen_loop = false;
+    else if (turn === piece_color) {
+        let p = (piece_type * 2) + (piece_color === "b" ? 1 : 0);
+        let beat = audioContext.currentTime + (eights * (file > 3 ? 7 - file : file));
+        //playNote(orchestra[RHYTHM],beat,adj_rank + 36, eights, volume);
+        //playNote(orchestra[RHYTHM],beat,p + 48, eights, volume/2 + ((volume/2) * (adj_rank/7)));
+        playNote(orchestra[RHYTHM],beat,MODES[pawn_count][adj_rank] + (piece_type * 12) + 24, eights, volume);
     }
 }
 
@@ -160,7 +163,9 @@ function nextMove() {
     game.move(moves[move_num]);
     board.position(game.fen());
     document.getElementById("fenBox").value = game.fen();
-    //if (document.getElementById("chk_harmony").checked) playFEN(game.fen(),false, moves[move_num].piece === "p");
+    if (document.getElementById("chk_extra").checked) { // && game.turn() === "w"
+        playFEN(game.fen(),false, moves[move_num].piece === "p");
+    }
     if (!document.getElementById("chk_mute").checked) playMove();
     if (playing && ++move_num < moves.length) window.setTimeout(nextMove,tempo);
     else setPlaying(false);
