@@ -14,9 +14,9 @@ const PIECE_CODE = "pnbrqkPNBRQK";
 const PAWN = 0, KNIGHT = 1, BISHOP = 2, ROOK = 3, QUEEN = 4, KING = 5;
 const TRIPLET = -3, DUPLE = -2, QUARTER = 1;
 const RHYTHMS = [TRIPLET,DUPLE,QUARTER,2,3,4,6,8,12,16,24,36];
-const MOVE="Move", PAWN_STR="Pawn", CAPTURE="Capture", HARMONY = "Harmony";
-const INSTRUMENTS = [MOVE,PAWN_STR,CAPTURE,HARMONY];
-const DEFAULT_INSTRUMENTS = [70,53,44,45];
+const MOVE="Move", PAWN_STR="Pawn", CAPTURE="Capture", HARMONY = "Harmony", RHYTHM = "Rhythm";
+const INSTRUMENTS = [MOVE,PAWN_STR,CAPTURE,HARMONY, RHYTHM];
+const DEFAULT_INSTRUMENTS = [70,53,44,45,1];
 const orchestra = [];
 const game = new Chess();
 const board = Chessboard('mainBoard', 'start')
@@ -29,6 +29,7 @@ let rhythm_flag = 0;
 let current_key = 60;
 let current_eval = 0;
 let pawn_moves = 0;
+let fen_loop = false;
 let melody = 60, simple_melody = false;
 
 const AudioContextFunc = window.AudioContext || window.webkitAudioContext;
@@ -59,39 +60,80 @@ function mapPitch(x, y) {
     return x + (y * 8) + 24;
 }
 
-function playFEN(f,pawn_move) {
-    let real_time = false;
-    if (f === undefined) {
-        f = document.getElementById("fenBox").value; real_time = true; pawn_move = true;
-    }
-    let fen = f.split(" ")[0].split("/"); //let turn = f.split(" ")[1]; //console.log(turn); console.log(fen);
-    let eights = (tempo/1000) / 4; //8
-    console.log(eights);
-    for (let rank = 0; rank < fen.length; rank++) {
-        let beat = 0;
-        for (let i = 0; i < fen[rank].length; i++) {
-            let piece_char = fen[rank].charAt(i);
-            let piece_type = PIECE_CODE.indexOf(piece_char.toLowerCase()); //console.log("Piece Type: " + piece_type);
-            let piece = PIECE_CODE.indexOf(piece_char);
+function pieceColor(piece) {
+    return piece > PIECE_CODE.indexOf("k") ? "w" : "b";
+}
 
+function playPGNRhythm(piece_type,piece_color,file,rank,pawn_count,pawn_move,turn) {
+    let eights = (tempo/1000) / 8;
+    let adj_rank = piece_color === "w" ? 7-rank : rank; //descriptive style ranks
+    if (piece_type === PAWN) {
+        if (pawn_move && adj_rank > 1) {
+            playNote(orchestra[PAWN_STR],0,MODES[pawn_count][file] + (12 * adj_rank) + 12,
+            (tempo/1000) * nextPawnMove(),volume);
+        }
+    }
+    else if (piece_color === turn) {  //console.log(" rank: " + adj_rank + ", file: " + file);
+        playNote(orchestra[RHYTHM],audioContext.currentTime + (eights * file),
+            (piece_type * 2) + (piece_color === "b" ? 1 : 0) + (12 * adj_rank) + 24, eights, volume);
+    }
+}
+
+function runFEN(e) {
+    let fen_box = document.getElementById("fenBox");
+    if (!fen_loop) {
+        fen_loop = true; playFEN(fen_box.value,true); e.innerText = "Stop FEN";
+    }
+    else {
+        //player.cancelQueue(audioContext);
+        e.innerText = "Play FEN"; fen_loop = false;
+    }
+}
+
+function playFEN(fen,real_time,pawn_move) {
+    let fen_str = fen.split(" ")[0].split("/");
+    let turn = fen.split(" ")[1];  //console.log(turn); //console.log(fen_str);
+    let pawn_count = pawnCount(fen);
+    let t = (tempo/1000);
+
+    let chords = [];
+    for (let i=0; i<fen_str.length; i++) chords[i] = [];
+
+    for (let rank = 0; rank < fen_str.length; rank++) {
+        let file = 0;
+        for (let i = 0; i < fen_str[rank].length; i++) {
+            let piece_char = fen_str[rank].charAt(i);
+            let piece_type = PIECE_CODE.indexOf(piece_char.toLowerCase()); //console.log("Piece Type: " + piece_type);
+            let piece_color = pieceColor(PIECE_CODE.indexOf(piece_char));
             if (piece_type === -1) {
-                beat += parseInt(fen[rank].charAt(i));
+                file += parseInt(fen_str[rank].charAt(i));
             }
-            else { //(piece_char==="P" && turn==="w") || (piece_char=="p" && turn==="b")) {
-                let adj_rank = piece > PIECE_CODE.indexOf("k") ? 7-rank : rank;
-                if (pawn_move && piece_type === PAWN) {
-                    if (adj_rank > 1) {
-                        playNote(orchestra[PAWN_STR],0,mapPitch(beat,adj_rank-1),
-                            real_time ? tempo/1000 : (tempo/1000) * nextPawnMove(),volume);
+            else {
+                let adj_rank = piece_color === "w" ? 7-rank : rank; //descriptive style ranks
+                if (real_time) {
+                    if (piece_type === PAWN) {
+                        if (adj_rank > 1) {
+                            playNote(orchestra[PAWN_STR],0,MODES[pawn_count][file] + (12 * adj_rank) + 12,
+                           t * fen_str.length,volume);
+                        }
+                    }
+                    else {
+                        chords[file].push(rank + 48); //console.log("File: " + file + " -> " + chords[file]);
                     }
                 }
-                else {  //console.log("Piece: " + piece + " rank: " + adj_rank + ", beat: " + beat);
-                    playNote(orchestra[HARMONY],audioContext.currentTime + (eights * beat),
-                    rank + (12 * (piece_type) + 12), eights, volume/2);
-                }
-                beat++;
+                else playPGNRhythm(piece_type,piece_color,file,rank,pawn_count,pawn_move,turn);
+                file++;
             }
         }
+    }
+    for (let i = 0; i < chords.length; i++) {
+        for (let n = 0; n < chords[i].length; n++) {
+            let t2 = t/chords[i].length;
+            playNote(orchestra[RHYTHM],audioContext.currentTime + (t * i) + (t2 * n), chords[i][n], t, volume);
+        }
+    }
+    if (fen_loop) {
+        setTimeout(() => playFEN(document.getElementById("fenBox").value,true),tempo*8);
     }
 }
 
@@ -117,10 +159,9 @@ function setPlaying(bool) {
 function nextMove() {
     game.move(moves[move_num]);
     board.position(game.fen());
-
-    if (document.getElementById("chk_harmony").checked) playFEN(game.fen(),moves[move_num].piece === "p");
-    playMove();
-
+    document.getElementById("fenBox").value = game.fen();
+    //if (document.getElementById("chk_harmony").checked) playFEN(game.fen(),false, moves[move_num].piece === "p");
+    if (!document.getElementById("chk_mute").checked) playMove();
     if (playing && ++move_num < moves.length) window.setTimeout(nextMove,tempo);
     else setPlaying(false);
 }
@@ -140,7 +181,7 @@ function playMove() { //console.log("Playing: " + moves[move_num].from + moves[m
         current_key = 60 + PIECE_CODE.indexOf(moves[move_num].piece);
         playNote(orchestra[CAPTURE],0,current_key - 24, t * ((nextCapture() - move_num)+1), volume);
     }
-    else current_eval = getEval();
+    else current_eval = getEval(game.fen());
 
     rhythm_flag--;
     let current_mode = MODES[PIECE_CODE.indexOf(moves[move_num].piece)];
@@ -157,7 +198,7 @@ function playMove() { //console.log("Playing: " + moves[move_num].from + moves[m
             playNote(orchestra[MOVE],0,24 + melody,t * rhythm_flag, volume);
         }
         //console.log(pitches); //console.log(current_mode);
-        //console.log("P1: " + current_mode[pitches[2]]); //console.log("P2: " + current_mode[pitches[3]]);
+        //console.log("To File: " + current_mode[pitches[2]]); //console.log("To Rank: " + current_mode[pitches[3]]);
         if (RHYTHMS[r] < QUARTER) {
             let d = (tempo/1000)/Math.abs(RHYTHMS[r]);
             playNote(orchestra[MOVE],0,current_mode[pitches[2]] + current_key, d, volume);
@@ -204,27 +245,39 @@ function calcDist(x1,y1,x2,y2) {
     return Math.sqrt(Math.pow(Math.abs(x1-x2),2) + Math.pow(Math.abs(y1-y2),2));
 }
 
-function getEval() {
+function getEval(fen) {
+    let piece_str = fen.split(" ")[0];
     let e = 0;
-    for (let i = 0; i < game.SQUARES.length; i++) {
-        let sqr = game.get(game.SQUARES[i]);
-        if (sqr !== null) {
-            let v = 0;
-            switch(sqr.type) {
-                case "p": v = 1; break;
-                case "n": v = 3; break;
-                case "b": v = 3; break;
-                case "r": v = 5; break;
-                case "q": v = 9; break;
-            }
-            e += (sqr.color === "w" ? v : -v);
+    for (let i = 0; i < piece_str.length; i++) {
+        let v = 0;
+        switch(piece_str.charAt(i)) {
+            case "p": v = -1; break;
+            case "n": v = -3; break;
+            case "b": v = -3; break;
+            case "r": v = -5; break;
+            case "q": v = -9; break;
+            case "P": v = 1; break;
+            case "N": v = 3; break;
+            case "B": v = 3; break;
+            case "R": v = 5; break;
+            case "Q": v = 9; break;
         }
+        e += v;
     }
     return e;
 }
 
+function pawnCount(fen) {
+    let fen_str = fen.split(" ");
+    let piece_str = fen_str[0];
+    let pawn = fen_str[1] === "w" ? "P" : "p";
+    let count = 0;
+    for (let i = 0; i < piece_str.length; i++) if (piece_str.charAt(i) === pawn) count++;
+    return count;
+}
+
 function playNote(i,t,p,d,v) {
-    player.queueWaveTable(audioContext, audioContext.destination, i,t,p,d,v);
+    if (playing || fen_loop) player.queueWaveTable(audioContext, audioContext.destination, i,t,p,d,v);
 }
 
 function getPitches(move) {

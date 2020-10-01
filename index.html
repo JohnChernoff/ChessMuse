@@ -15,8 +15,12 @@
  <body>
     <div id = "opt_box">
         <div id = "timbre_box"> </div>
+        <!--
         <input type="checkbox" id="chk_harmony">
         <label for="chk_harmony"> Dense Harmonies </label>
+        -->
+        <input type="checkbox" id="chk_mute">
+        <label for="chk_mute"> Mute </label>
         <br><br>
         <label id="lab_tempo" for="range_tempo"> Tempo: 120 </label> <br>
         <input id="range_tempo" type="range" min="12" max="240" value="120" onchange="setTempo()" >
@@ -25,7 +29,7 @@
         <input id="range_volume" type="range" min="1" max="100" value="50" onchange="setVolume()" >
         <br><br>
         <label for="pgnBox">PGN (Portable Game Notation) text:</label><br>
-        <textarea id="pgnBox" rows="24" cols="50">
+        <textarea id="pgnBox" rows="16" cols="50">
 [Event "20th Montcada Open"]
 [Site "Montcada i Reixac ESP"]
 [Date "2012.06.25"]
@@ -56,7 +60,7 @@ r1bqk2r/pppnppbp/3p1np1/8/2BP1P2/4PN2/PPP3PP/RNBQK2R w KQkq - 5 6
         <button type="button" id="start_butt" value = "start" onclick="playGame()"> Start </button>
         <button type="button" id="rnd_butt" value = "randomize" onclick="randomOrchestra(false)"> Randomize </button>
         <button type="button" id="def_butt" value = "defaults" onclick="randomOrchestra(true)"> Defaults </button>
-        <button type="button" id="def_fen" value = "defaults" onclick="playFEN()"> Play FEN </button>
+        <button type="button" id="def_fen" value = "defaults" onclick="runFEN(this)"> Play FEN </button>
     </div>
 
   <div id="display">
