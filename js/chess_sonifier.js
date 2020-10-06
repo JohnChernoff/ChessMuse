@@ -34,6 +34,8 @@ let last_pawn_push = 0;
 let last_loop_ply = 0;
 let pattern_length = 4;
 let melody = 60, simple_melody = false;
+let pawn_chord = [];
+let pawn_chord_range = 32;
 
 const AudioContextFunc = window.AudioContext || window.webkitAudioContext;
 let audioContext = new AudioContextFunc();
@@ -49,6 +51,36 @@ window.onload = function() {
     //setMode();
     setTempo();
     setVolume();
+}
+
+function updateStatus(msg) {
+    let status = document.getElementById("StatusBox");
+    status.textContent += msg + "\n";
+    status.scrollTop = status.scrollHeight;
+}
+
+function updateFEN(fen) {
+    document.getElementById("input_fen").value = fen;
+    board.position(fen);
+}
+
+function newPawnChord(notes, bass) {  //console.log(notes);
+    for (let i = 0; i < pawn_chord_range; i++)  {
+        let sounding = false;
+        for (let n = 0; n < notes.length; n++) {
+            if (notes[n] === i) {
+                sounding = true;
+                if (!pawn_chord[i]) { //console.log("New Note: " + i);
+                    pawn_chord[i] = playNote(orchestra[PAWN_STR], 0, notes[n] + bass, 999, volume);
+                }
+                break;
+            }
+        }
+        if (!sounding && pawn_chord[i]) { //console.log("Cancelling Note: " + i + ", " + pawn_chord[i]);
+            pawn_chord[i].cancel();
+            pawn_chord[i] = null;
+        }
+    }
 }
 
 function randomOrchestra(def) {
@@ -67,14 +99,14 @@ function pieceColor(piece) {
     return piece > PIECE_CODE.indexOf("k") ? "w" : "b";
 }
 
-function runFEN(e) {
-    let fen_box = document.getElementById("fenBox");
+function runFEN() {
+    let e = document.getElementById("fen_butt");
+    let fen_box = document.getElementById("input_fen");
     if (!fen_loop) {
         fen_loop = true; playFEN(fen_box.value,true); e.innerText = "Stop FEN";
     }
     else {
-        player.cancelQueue(audioContext);
-        e.innerText = "Play FEN"; fen_loop = false;
+        clearNotes(); e.innerText = "Play FEN"; fen_loop = false;
     }
 }
 
@@ -82,10 +114,8 @@ function playFEN(fen) {
     let fen_str = fen.split(" ")[0].split("/"); //console.log(fen_str);
     //let turn = fen.split(" ")[1];  //console.log(turn);
     let mode = last_pawn_push; //pawnCount(fen); //console.log(last_pawn_push);
-
     let notes = []; let pawns = [];
     for (let i=0; i<fen_str.length; i++) notes[i] = [];
-
     for (let rank = 0; rank < fen_str.length; rank++) {
         let file = 0;
         for (let i = 0; i < fen_str[rank].length; i++) {
@@ -93,17 +123,15 @@ function playFEN(fen) {
             let piece = PIECE_CODE.indexOf(piece_char);
             let piece_type = PIECE_CODE.indexOf(piece_char.toLowerCase());
             let piece_color = pieceColor(piece);
-            if (piece_type === -1) {
+            if (piece_type === -1) {  //for (let i=0;i<empty_squares;i++) notes[file + i].push(-1);
                 let empty_squares = parseInt(fen_str[rank].charAt(i));
-                //for (let i=0;i<empty_squares;i++) notes[file + i].push(-1);
                 file += empty_squares;
             }
             else {
                 let adj_rank = piece_color === "w" ? 7-rank : rank; //descriptive style ranks
                 if (piece_type === PAWN) {
-                    if (adj_rank > 1) pawns.push(MODES[mode][file] + (12 * adj_rank) + 12);
-                    //if (piece_color === turn) notes[file].push({pitch1:piece + 48,pitch2:adj_rank + 48});
-                    //else notes[file].push({pitch1:0,pitch2:0});
+                    if (adj_rank > 1) pawns.push(MODES[mode][file] + 12);
+                    if (adj_rank > 0) pawns.push(MODES[mode][adj_rank-1]);
                 }
                 else { //notes[file].push(piece + MODES[piece_type][adj_rank] + 48);
                     let p = (piece_type === KING) ? 7 : piece_color === "w" ? piece_type - 1 : (piece_type - 1) + 4;
@@ -113,11 +141,9 @@ function playFEN(fen) {
             }
         }
     }
-
     //console.log(notes);
-    let t = (tempo/1000) * (pattern_length/notes.length);
-    for (let i=0;i<pawns.length;i++) playNote(orchestra[HARMONY],0,pawns[i],t,volume);
-    //let t2 = t/notes.length;
+    newPawnChord(pawns,60);
+    let t = (tempo/1000) * (pattern_length/notes.length);  //let t2 = t/notes.length;
     for (let i = 0; i < notes.length; i++) {  //let t3 = t2 = t/notes[i].length;
         for (let n = 0; n < notes[i].length; n++) {
             let t2 = t/notes[i].length; //if (notes[i][n] <= 0) t3 += t2; else t3 = t2;
@@ -129,13 +155,17 @@ function playFEN(fen) {
         }
     }
     if (fen_loop) {
-        setTimeout(() => playFEN(document.getElementById("fenBox").value,true),
+        setTimeout(() => playFEN(document.getElementById("input_fen").value,true),
             tempo * pattern_length);
     }
 }
 
-function playGame() {
+function clearNotes() {
     player.cancelQueue(audioContext);
+    newPawnChord([]);
+}
+
+function playGame() {
     if (!playing) {
         game.load_pgn(document.getElementById("pgnBox").value);
         moves = game.history({ verbose: true }); //console.log(moves);
@@ -144,10 +174,13 @@ function playGame() {
         setPlaying(true);
         nextMove();
     }
-    else setPlaying(false);
+    else {
+        setPlaying(false);
+    }
 }
 
 function setPlaying(bool) {
+    clearNotes();
     playing = bool; let butt = document.getElementById("start_butt");
     if (playing) { butt.innerText = " Stop "; butt.value = "stop"; }
     else { butt.innerText = " Start "; butt.value = "start"; }
@@ -155,8 +188,7 @@ function setPlaying(bool) {
 
 function nextMove() {
     game.move(moves[move_num]);
-    board.position(game.fen());
-    document.getElementById("fenBox").value = game.fen();
+    updateFEN(game.fen()); //board.position(game.fen());
     if (document.getElementById("chk_extra").checked &&
         (last_loop_ply === 0 || ((move_num-last_loop_ply) >= pattern_length))) {
         playFEN(game.fen()); //,false, moves[move_num].piece === "p");
@@ -186,11 +218,8 @@ function playMove() { //console.log("Playing: " + moves[move_num].from + moves[m
     rhythm_flag--;
     let current_mode = MODES[PIECE_CODE.indexOf(moves[move_num].piece)];
     if (moves[move_num].piece === "p") { //console.log("Pawn move!");
-        playNote(orchestra[PAWN_STR],
-            0,mapPitch(pitches[2],pitches[3]),t * ((nextPawnMove() - move_num)+1),volume, mute);
-        playNote(orchestra[MOVE],
-            0,current_mode[pitches[2]] + current_key, tempo/1000, volume, mute);
-        pawn_moves++; //TODO: what is this for?
+        //playNote(orchestra[PAWN_STR],0,mapPitch(pitches[2],pitches[3]),t * ((nextPawnMove()-move_num)+1),volume,mute);
+        playNote(orchestra[MOVE],0,current_mode[pitches[2]] + current_key, tempo/1000, volume, mute);
         last_pawn_push = pitches[2];
     }
     else if (rhythm_flag <= 0) {
@@ -283,7 +312,8 @@ function pawnCount(fen) {
 }
 
 function playNote(i,t,p,d,v,mute) {
-    if (!mute && (playing || fen_loop)) player.queueWaveTable(audioContext, audioContext.destination, i,t,p,d,v);
+    if (!mute && (playing || fen_loop)) return player.queueWaveTable(audioContext, audioContext.destination, i,t,p,d,v);
+    else return null;
 }
 
 function getPitches(move) {
