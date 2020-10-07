@@ -1,6 +1,7 @@
 let current_game = new Chess();
 let user_id, oauth, current_gid;
 let streaming = false;
+let play_stream = false;
 
 function login() {
     if (!streaming) oauth=document.getElementById("input_oauth").value; else {
@@ -39,6 +40,11 @@ function streamGame() {
     then(readStream(processGameUpdate)).then(onGameStreamClose);
 }
 
+function togglePlayStream(e) {
+    play_stream = !play_stream;
+    if (play_stream) { e.innerText = " Stop Lichess "; playStream(); } else  e.innerText = " Play Lichess ";
+}
+
 //my function readStream takes a function as argument, and returns a function that takes a response as argument and returns a Promise
 const readStream = processLine => response => {
     const stream = response.body.getReader();
@@ -69,15 +75,26 @@ const readStream = processLine => response => {
 }
 
 function processGameUpdate(game_update) { //console.log(game_update);
-    let moves = game_update.state ? game_update.state.moves : game_update.moves;
-    if (moves) {
+    let data = game_update.state ? game_update.state.moves : game_update.moves;
+    if (data) {
         current_game.reset();
-        let move_list = moves.split(" "); //console.log(move_list);
+        let move_list = data.split(" "); //console.log(move_list);
         for (let i = 0; i< move_list.length; i++) current_game.move(
             {from: move_list[i].substr(0,2), to: move_list[i].substr(2,2) }
         );
         console.log(current_game.ascii());
         updateFEN(current_game.fen());
+    }
+}
+
+function playStream() {
+    if (play_stream) {
+        let melody = getMelody(current_game.history({ verbose: true }));
+        let t = playMelody(melody,2,8);
+        if (melody.length > 4) {
+            let chord = melody.slice(melody.length-4); playChord(chord,2); //console.log(chord);
+        }
+        window.setTimeout(playStream,t * 1000);
     }
 }
 
