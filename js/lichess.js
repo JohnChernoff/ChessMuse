@@ -4,6 +4,8 @@ let streaming = false;
 let play_stream = false;
 let gameSock = null;
 let pinger = null;
+let playingBlack = false;
+let timeDiff = 0;
 
 function login() {
     if (!streaming) oauth=document.getElementById("input_oauth").value; else {
@@ -111,24 +113,18 @@ function getGID(username) {
    //     {headers:{'Accept':'application/json','Authorization':'Bearer ' + oauth}})
    //     .then(response => response.json())
    //     .then(data => followGame(data.nowPlaying[0].gameId));
-    fetch("https://lichess.org/@/" + username + "/playing",
-         {headers:{'Accept':'application/html'}})
-         .then(response => response.text().then(text => getGameIDFromLichessProfile(text)));
+    fetch("https://lichess.org/@/" + username + "/playing",{headers:{'Accept':'application/html'}})
+         .then(response => response.text().then(text => getGameIDFromLichessProfile(text)))
+         .then(gid => followGame(gid));
 }
 
 function getGameIDFromLichessProfile(html) {
     let parser = new DOMParser().parseFromString(html,'text/html');
     let e = parser.getElementsByClassName("game-row__overlay")[0];
     let bits = e.href.split("/");
-    if (bits[bits.length-1].toLowerCase() == "black") return bits[bits.length-2]; else return bits[bits.length-1];
+    playingBlack = bits[bits.length-1].toLowerCase() == "black";
+    if (playingBlack) return bits[bits.length-2]; else return bits[bits.length-1];
 }
-
-function followUser(user) {
-    getGID(user).then(gid => followGame(gid));
-    //console.log(gid);
-    //followGame(gid);
-}
-
 
 function followGame(gid) {
     current_gid = gid; current_game.reset();
@@ -156,6 +152,10 @@ function followGame(gid) {
         let data = JSON.parse(event.data);
         if (data.t && data.t === "move") {
             updateFEN(data.d.fen + " w KQkq - 1 1");
+            timeDiff =  Math.round(
+           playingBlack ? (data.d.clock.black - data.d.clock.white) : (data.d.clock.white - data.d.clock.black));
+            console.log(timeDiff);
+
         }
 
     }
