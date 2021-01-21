@@ -2,6 +2,8 @@ let current_game = new Chess();
 let user_id, oauth, current_gid;
 let streaming = false;
 let play_stream = false;
+let gameSock = null;
+let pinger = null;
 
 function login() {
     if (!streaming) oauth=document.getElementById("input_oauth").value; else {
@@ -45,7 +47,7 @@ function togglePlayStream(e) {
     if (play_stream) { e.innerText = " Stop Lichess "; playStream(); } else  e.innerText = " Play Lichess ";
 }
 
-//my function readStream takes a function as argument, and returns a function that takes a response as argument and returns a Promise
+//readStream takes a function as argument, and returns a function that takes a response as argument and returns a Promise
 const readStream = processLine => response => {
     const stream = response.body.getReader();
     const matcher = /\r?\n/;
@@ -74,7 +76,7 @@ const readStream = processLine => response => {
     return loop().then(() => { }); //console.log('the stream has completed');
 }
 
-function processGameUpdate(game_update) { //console.log(game_update);
+function processGameUpdate(game_update) { console.log(game_update);
     let data = game_update.state ? game_update.state.moves : game_update.moves;
     if (data) {
         current_game.reset();
@@ -98,12 +100,72 @@ function playStream() {
     }
 }
 
-function processEvent(event) { //console.log(event);
-    if (event.type === "gameStart") {
-        current_gid = event.game.id; updateStatus("Beginning/resuming Game: " + current_gid);
-        streamGame(); //console.log("Following game: " + current_gid);
+function processEvent(event) { console.log(event);
+    if (event.type === "gameStart") { //streamGame(); //console.log("Following game: " + current_gid);
+        followGame(event.game.id);
     }
 }
+
+function getGID(username) {
+   // fetch('https://lichess.org/api/account/playing',
+   //     {headers:{'Accept':'application/json','Authorization':'Bearer ' + oauth}})
+   //     .then(response => response.json())
+   //     .then(data => followGame(data.nowPlaying[0].gameId));
+    fetch("https://lichess.org/@/" + username + "/playing",
+         {headers:{'Accept':'application/html'}})
+         .then(response => response.text().then(text => getGameIDFromLichessProfile(text)));
+}
+
+function getGameIDFromLichessProfile(html) {
+    let parser = new DOMParser().parseFromString(html,'text/html');
+    let e = parser.getElementsByClassName("game-row__overlay")[0];
+    let bits = e.href.split("/");
+    if (bits[bits.length-1].toLowerCase() == "black") return bits[bits.length-2]; else return bits[bits.length-1];
+}
+
+function followUser(user) {
+    getGID(user).then(gid => followGame(gid));
+    //console.log(gid);
+    //followGame(gid);
+}
+
+
+function followGame(gid) {
+    current_gid = gid; current_game.reset();
+    updateStatus("Beginning/resuming Game: " + current_gid);
+    let url = "wss://socket.lichess.org/watch/" + current_gid + "/black/v5?sri=zug999";
+    gameSock = new WebSocket(url);
+
+    gameSock.onopen = function(e) { //console.log("Open event: " + e);
+        updateStatus("New Game: " + current_gid);
+        pinger = setInterval(function() { gameSock.send("{\"t\":\"p\",\"v\":9999999}"); }, 2000);
+    };
+
+    gameSock.onclose = function(event) {
+        console.log("Socket closed on game: " + current_gid);
+        if (event.wasClean) {
+            console.log(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+        } else { // e.g. server process killed or network down (event.code is usually 1006 in this case)
+            console.log('[close] Connection died');
+        }
+        clearInterval(pinger);
+    };
+
+    gameSock.onmessage = function(event) {
+        console.log(`[message] Data received from server: ${event.data}`);
+        let data = JSON.parse(event.data);
+        if (data.t && data.t === "move") {
+            updateFEN(data.d.fen + " w KQkq - 1 1");
+        }
+
+    }
+
+    gameSock.onerror = function(error) {
+        console.log(`[error] ${error.message}`);
+    };
+}
+
+
 
 function onGameStreamClose() {
     if (streaming) updateStatus("Finished Game: " + current_gid); console.log("Game Stream closed.");
