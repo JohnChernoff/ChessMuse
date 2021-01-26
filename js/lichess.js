@@ -103,7 +103,7 @@ function initLichessSocket(gid) {
         if (data.t) {
             if (data.t === "move") {
                 //console.log(data);
-                updateFEN(data.d.fen + " w KQkq - 1 1");
+                setCurrentFEN(data.d.fen + " w KQkq - 1 1");
                 let pct = playingBlack ? data.d.clock.black/data.d.clock.white : data.d.clock.white/data.d.clock.black;
                 setPlayTime(pct, playingBlack ? data.d.clock.black : data.d.clock.white);
                 updateGameStatus( blackPlayer + " " + data.d.clock.black + " vs.\n" +

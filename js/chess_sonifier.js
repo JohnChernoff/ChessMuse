@@ -1,5 +1,3 @@
-//TODO: make lichess/pgn playback a dropdown select/choice
-
 const IONIAN = [ 0,2,4,5,7,9,11,12 ];
 const DORIAN = [ 0,2,3,5,7,9,10,12 ];
 const PHRYGIAN = [ 0,1,3,5,7,8,10,12 ];
@@ -13,11 +11,11 @@ const MODES = [IONIAN,DORIAN,PHRYGIAN,LYDIAN,MIXOLYDIAN,AEOLIAN,LOCRIAN,BLUES,CH
 const TONIC = [0,4,7], SUBMEDIANT = [0,4,9], SUBDOMINANT = [0,5,9], DIM = [0,3,6], AUG = [0,4,8], MINOR = [0,3,7];
 const CHORDS = [TONIC,SUBMEDIANT,SUBDOMINANT,DIM,AUG,MINOR];
 const PIECE_CODE = "pnbrqkPNBRQK";
-const PAWN = 0, KNIGHT = 1, BISHOP = 2, ROOK = 3, QUEEN = 4, KING = 5;
+const EMPTY = -1, PAWN = 0, KNIGHT = 1, BISHOP = 2, ROOK = 3, QUEEN = 4, KING = 5;
 const TRIPLET = -3, DUPLE = -2, QUARTER = 1;
 const RHYTHMS = [TRIPLET,DUPLE,QUARTER,2,3,4,6,8,12,16,24,36];
 const MOVE="Move", PAWN_STR="Pawn", CAPTURE="Capture", HARMONY = "Harmony", RHYTHM = "Rhythm";
-const INSTRUMENTS = [MOVE,PAWN_STR,CAPTURE,HARMONY, RHYTHM];
+const INSTRUMENTS = [MOVE,PAWN_STR,CAPTURE,HARMONY,RHYTHM];
 const DEFAULT_INSTRUMENTS = [70,46,44,45,12];
 const orchestra = [];
 const game = new Chess();
@@ -26,10 +24,11 @@ let moves, move_num;
 let tempo;
 let volume = .075;
 let alberti = true;
-let playing = false;
+let pgn_loop = false;
 let rhythm_flag = 0;
 let current_key = 60;
 let current_eval = 0;
+let current_FEN = "";
 let fen_loop = false;
 let last_pawn_push = 0;
 let last_loop_ply = 0;
@@ -53,13 +52,38 @@ window.onload = function() {
     setVolume();
 }
 
-function updateFEN(fen) {
-    document.getElementById("input_fen").value = fen;
-    board.position(fen);
+function randomizeOrchestra(def) {
+    for (let i = 0; i<INSTRUMENTS.length; i++) {
+        let e = document.getElementById("select_" + INSTRUMENTS[i]);
+        e.selectedIndex = (def ? DEFAULT_INSTRUMENTS[i] : Math.floor(Math.random() * 128));
+        loadInstrument(INSTRUMENTS[i]);
+    }
+}
+
+function mapPitch(x, y) {
+    return x + (y * 8) + 24;
+}
+
+function getPieceColor(piece) {
+    return piece > PIECE_CODE.indexOf("k") ? "w" : "b";
+}
+
+function countdown(key_target,notes) {
+    let t = (tempo/1000) * notes;
+    let p = key_target - timeRemaining;
+    for (let i=0;i<notes;i++) {
+        playNote(orchestra[MOVE],audioContext.currentTime + (t * i),p,t,volume);
+        p+=3;
+    }
+}
+
+function clearNotes() {
+    player.cancelQueue(audioContext);
+    playNewPawnChord([]);
 }
 
 //TODO: percussion map for pawns?!
-function newPawnChord(notes, bass) {  //console.log(notes);
+function playNewPawnChord(notes, bass) {  //console.log(notes);
     for (let i = 0; i < pawn_chord_range; i++)  {
         let sounding = false;
         for (let n = 0; n < notes.length; n++) {
@@ -78,49 +102,41 @@ function newPawnChord(notes, bass) {  //console.log(notes);
     }
 }
 
-function randomOrchestra(def) {
-    for (let i = 0; i<INSTRUMENTS.length; i++) {
-        let e = document.getElementById("select_" + INSTRUMENTS[i]);
-        e.selectedIndex = (def ? DEFAULT_INSTRUMENTS[i] : Math.floor(Math.random() * 128));
-        loadInstrument(INSTRUMENTS[i]);
-    }
+function setCurrentFEN(fen) {
+    current_FEN = fen;
+    document.getElementById("input_fen").value = current_FEN;
+    board.position(current_FEN);
 }
 
-function mapPitch(x, y) {
-    return x + (y * 8) + 24;
+function toggleFEN() {
+    setFENPlayback(!fen_loop);
 }
 
-function pieceColor(piece) {
-    return piece > PIECE_CODE.indexOf("k") ? "w" : "b";
-}
-
-function runFEN() {
+function setFENPlayback(bool) {
+    fen_loop = bool;
     let e = document.getElementById("fen_butt");
-    let fen_box = document.getElementById("input_fen");
-    if (!fen_loop) {
-        fen_loop = true;
+    if (fen_loop) {
         e.innerText = "Stop FEN";
-        playFEN(fen_box.value,true);
+        loopFEN();
     }
     else {
-        fen_loop = false;
-        clearNotes();
         e.innerText = "Play FEN";
     }
 }
 
-function countdown(keytarget,notes) {
-    let t = (tempo/1000) * notes;
-    let p = keytarget - timeRemaining;
-    for (let i=0;i<notes;i++) {
-        playNote(orchestra[MOVE],audioContext.currentTime + (t * i),p,t,volume);
-        p+=3;
+function loopFEN() {
+    if (fen_loop) {
+        if (!pgn_loop) playCurrentFEN();
+        setTimeout(loopFEN,tempo * pattern_length);
+    }
+    else {
+        clearNotes();
     }
 }
 
-function playFEN(fen) {
+function playCurrentFEN() {
     if (lichess && timeRemaining<10) countdown(72,4);
-    let fen_str = fen.split(" ")[0].split("/");
+    let fen_str = current_FEN.split(" ")[0].split("/");
     let mode = last_pawn_push; //console.log(last_pawn_push);
     let notes = []; let pawns = [];
     for (let i=0; i<fen_str.length; i++) notes[i] = [];
@@ -130,8 +146,8 @@ function playFEN(fen) {
             let piece_char = fen_str[rank].charAt(i);
             let piece = PIECE_CODE.indexOf(piece_char);
             let piece_type = PIECE_CODE.indexOf(piece_char.toLowerCase());
-            let piece_color = pieceColor(piece);
-            if (piece_type === -1) {  //for (let i=0;i<empty_squares;i++) notes[file + i].push(-1);
+            let piece_color = getPieceColor(piece);
+            if (piece_type === EMPTY) {  //for (let i=0;i<empty_squares;i++) notes[file + i].push(-1);
                 let empty_squares = parseInt(fen_str[rank].charAt(i));
                 file += empty_squares;
             }
@@ -150,62 +166,45 @@ function playFEN(fen) {
         }
     }
     //console.log(notes);
-    newPawnChord(pawns,60);
+    playNewPawnChord(pawns,60);
     let t = (tempo/1000) * (pattern_length/notes.length);
     for (let i = 0; i < notes.length; i++) {
         for (let n = 0; n < notes[i].length; n++) {
             let p = notes[i][n].rank + (((notes[i][n].piece_type-1) * 12) +
-            lichess ? timeFactor > 1 ? 80 - Math.round(8 * 1/timeFactor) : 36 + Math.round(36 * timeFactor) : 48);
-            if (document.getElementById("chk_funk").checked) {
-                let t2 = t/notes[i].length;
-                playNote(orchestra[RHYTHM],audioContext.currentTime + (t * i) + (t2 * n),p,t,volume);
-            }
-            else playNote(orchestra[RHYTHM],audioContext.currentTime + (t * i),p,t,volume);
+            lichess ? (timeFactor > 1 ? 80 - Math.round(8 * (1/timeFactor)) : 36 + Math.round(36 * timeFactor))
+            : 48);
+            playNote(orchestra[RHYTHM],audioContext.currentTime + (t * i),p,t,volume);
         }
     }
-    if (fen_loop) {
-        setTimeout(() => playFEN(document.getElementById("input_fen").value,true),
-        tempo * pattern_length);
-    }
 }
 
-function clearNotes() {
-    player.cancelQueue(audioContext);
-    newPawnChord([]);
+function togglePGN() {
+    setPGNPlayback(!pgn_loop);
 }
 
-function playGame() {
-    if (!playing) {
+function setPGNPlayback(bool) {
+    clearNotes(); pgn_loop = bool; let butt = document.getElementById("pgn_butt");
+    if (pgn_loop) {
         game.load_pgn(document.getElementById("pgnBox").value);
         moves = game.history({ verbose: true }); //console.log(moves);
         game.reset();
         move_num = 0; current_eval = 0; last_loop_ply = 0;
-        setPlaying(true);
-        nextMove();
+        butt.innerText = " Stop PGN "; //butt.value = "stop";
+        loopPGN();
     }
-    else {
-        setPlaying(false);
-    }
+    else butt.innerText = " Play PGN "; //butt.value = "start"; }
 }
 
-function setPlaying(bool) {
-    clearNotes();
-    playing = bool; let butt = document.getElementById("start_butt");
-    if (playing) { butt.innerText = " Stop "; butt.value = "stop"; }
-    else { butt.innerText = " Start "; butt.value = "start"; }
-}
-
-function nextMove() {
+function loopPGN() {
     game.move(moves[move_num]);
-    updateFEN(game.fen()); //board.position(game.fen());
-    if (document.getElementById("chk_extra").checked &&
-        (last_loop_ply === 0 || ((move_num-last_loop_ply) >= pattern_length))) {
-        playFEN(game.fen()); //,false, moves[move_num].piece === "p");
+    setCurrentFEN(game.fen());
+    if (fen_loop && (last_loop_ply === 0 || ((move_num-last_loop_ply) >= pattern_length))) {
+        playCurrentFEN();
         last_loop_ply = move_num;
     }
     playMove();
-    if (playing && ++move_num < moves.length) window.setTimeout(nextMove,tempo);
-    else setPlaying(false);
+    if (pgn_loop && ++move_num < moves.length) window.setTimeout(loopPGN,tempo);
+    else setPGNPlayback(false);
 }
 
 function playMove() { //console.log("Playing: " + moves[move_num].from + moves[move_num].to);
@@ -364,7 +363,7 @@ function pawnCount(fen) {
 }
 
 function playNote(i,t,p,d,v,mute) { //console.log(i + "," + t + "," + p + "," + d + "," + v +"," + mute);
-    if (!mute && (lichess || playing || fen_loop))
+    if (!mute && (lichess || pgn_loop || fen_loop))
         return player.queueWaveTable(audioContext, audioContext.destination, i,t,p,d,v);
     else return null;
 }

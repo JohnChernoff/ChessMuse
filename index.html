@@ -15,12 +15,6 @@
  <body>
     <div id = "opt_box">
         <div id = "timbre_box"> </div>
-        <input type="checkbox" id="chk_extra">
-        <label for="chk_extra"> Extra Rhythm/Harmony </label>
-        <br><br>
-        <input type="checkbox" id="chk_funk">
-        <label for="chk_funk"> Funky Rhythms </label>
-        <br><br>
         <input type="checkbox" id="chk_mute">
         <label for="chk_mute"> Mute Melody </label>
         <br><br>
@@ -59,26 +53,22 @@ Nxe4 17. Nxe4 Bxe4 18. Be2 b3 19. Rc1 bxc2+ 20. Ka1 Qb7
         <br><br>
 
 
-        <button type="button" id="start_butt" value = "start" onclick="playGame()"> Start </button>
-        <button type="button" id="rnd_butt" value = "randomize" onclick="randomOrchestra(false)"> Randomize </button>
-        <button type="button" id="def_butt" value = "defaults" onclick="randomOrchestra(true)"> Defaults </button>
+        <button type="button" id="pgn_butt" value = " playPGN " onclick="togglePGN()"> Play PGN </button>
+        <button type="button" id="rnd_butt" value = "randomize" onclick="randomizeOrchestra(false)"> Randomize </button>
+        <button type="button" id="def_butt" value = "defaults" onclick="randomizeOrchestra(true)"> Defaults </button>
         <br><br>
         <label for="input_user_id">Lichess Handle:</label><br>
         <input type="text" id="input_user_id" value = "ZugAddict" rows="1" cols="24">
         <button type="button" id="lichess_butt" value = "lichess" onclick="toggleLichess()"> Watch </button>
-        <button type="button" id="fen_butt" value = "fen" onclick="runFEN(this)"> FEN Loop </button>
+        <button type="button" id="fen_butt" value = "fen" onclick="toggleFEN()"> FEN Loop </button>
         <br><br>
         <textarea id="StatusBox" readonly rows="2" cols="48"> </textarea>
-
-
 
     </div>
 
   <div id="display">
     <div id="mainBoard" ></div>
   </div>
-
-
 
  <script type="text/javascript" src="js/chess_sonifier.js"></script>
  <script type="text/javascript" src="js/lichess.js"></script>
