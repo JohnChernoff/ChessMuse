@@ -31,7 +31,7 @@
         <input id="range_volume" type="range" min="1" max="100" value="50" onchange="setVolume()" >
         <br><br>
         <label for="pgnBox">PGN (Portable Game Notation) text:</label><br>
-        <textarea id="pgnBox" rows="12" cols="50">
+        <textarea id="pgnBox" rows="8" cols="50">
 [Event "20th Montcada Open"]
 [Site "Montcada i Reixac ESP"]
 [Date "2012.06.25"]
@@ -57,23 +57,28 @@ Nxe4 17. Nxe4 Bxe4 18. Be2 b3 19. Rc1 bxc2+ 20. Ka1 Qb7
         <label for="input_fen">FEN (Forsyth-Edwards Notation) position:</label><br>
         <input type=text id="input_fen" size="48" value="r1bqk2r/pppnppbp/3p1np1/8/2BP1P2/4PN2/PPP3PP/RNBQK2R w KQkq - 5 6">
         <br><br>
-        <label for="input_oauth">Lichess OAuth Token:</label><br>
-        <input type="password" id="input_oauth" rows="1" cols="24">
-        <button type="button" id="log_butt" onclick="login()"> Login </button>
-        <br><br>
-        <textarea id="StatusBox" readonly rows="4" cols="48"> </textarea>
-        <br><br>
+
+
         <button type="button" id="start_butt" value = "start" onclick="playGame()"> Start </button>
         <button type="button" id="rnd_butt" value = "randomize" onclick="randomOrchestra(false)"> Randomize </button>
         <button type="button" id="def_butt" value = "defaults" onclick="randomOrchestra(true)"> Defaults </button>
-        <button type="button" id="fen_butt" value = "fen" onclick="runFEN(this)"> Play FEN </button>
-        <button type="button" id="stream_butt" value = "fen" onclick="togglePlayStream(this)"> Play Lichess </button>
-        <button type="button" id="test_butt" value = "test" onclick="getGID('ZugAddict')"> Get GID </button>
+        <br><br>
+        <label for="input_user_id">Lichess Handle:</label><br>
+        <input type="text" id="input_user_id" value = "ZugAddict" rows="1" cols="24">
+        <button type="button" id="lichess_butt" value = "lichess" onclick="toggleLichess()"> Watch </button>
+        <button type="button" id="fen_butt" value = "fen" onclick="runFEN(this)"> FEN Loop </button>
+        <br><br>
+        <textarea id="StatusBox" readonly rows="2" cols="48"> </textarea>
+
+
+
     </div>
 
   <div id="display">
     <div id="mainBoard" ></div>
   </div>
+
+
 
  <script type="text/javascript" src="js/chess_sonifier.js"></script>
  <script type="text/javascript" src="js/lichess.js"></script>

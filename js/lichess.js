@@ -1,140 +1,89 @@
 let current_game = new Chess();
-let user_id, oauth, current_gid;
-let streaming = false;
-let play_stream = false;
+let user_id, current_gid;
 let gameSock = null;
 let pinger = null;
 let playingBlack = false;
 let timeDiff = 0;
+let lichess = false;
+let blackPlayer = "", whitePlayer = "";
+let timeFactor = 1;
+let timeRemaining = 999;
 
-function login() {
-    if (!streaming) oauth=document.getElementById("input_oauth").value; else {
-        toggleStream(false); return;
+function toggleLichess() {
+    let button = document.getElementById("lichess_butt");
+    lichess = !lichess;
+    if (lichess) {
+        button.innerText = "UnWatch";
+        followLichess();
     }
-    $.ajax({
-        url: 'https://lichess.org/api/account',
-        type: 'GET',
-        headers: {'Accept':'application/json','Authorization':'Bearer ' + oauth},
-        error: function(oops) { updateStatus(oops.responseText); console.log(oops); },
-        success: function(a) { } //console.log("success: " + a);
-    }).done(function(response) {
-        user_id = response.id;
-        updateStatus("Logged in as: " + user_id);
-        toggleStream(true);
-        streamEvents();
-    });
-}
-
-function toggleStream(bool) {
-    if (bool === undefined) bool = !streaming;
-    let e = document.getElementById("log_butt");
-    streaming = bool;
-    if (streaming) e.innerText = "Logout"; else e.innerText = "Login";
-}
-
-function streamEvents() {
-    fetch('https://lichess.org/api/stream/event',
-        {headers:{'Accept':'application/x-ndjson','Authorization':'Bearer ' + oauth}}).
-    then(readStream(processEvent)).then(onEventStreamClose);
-}
-
-function streamGame() {
-    fetch('https://lichess.org/api/board/game/stream/' + current_gid,
-        {headers:{'Accept':'application/x-ndjson','Authorization':'Bearer ' + oauth}}).
-    then(readStream(processGameUpdate)).then(onGameStreamClose);
-}
-
-function togglePlayStream(e) {
-    play_stream = !play_stream;
-    if (play_stream) { e.innerText = " Stop Lichess "; playStream(); } else  e.innerText = " Play Lichess ";
-}
-
-//readStream takes a function as argument, and returns a function that takes a response as argument and returns a Promise
-const readStream = processLine => response => {
-    const stream = response.body.getReader();
-    const matcher = /\r?\n/;
-    const decoder = new TextDecoder();
-    let buf = '';
-
-    const loop = () =>
-        stream.read().then(({ done, value }) => {
-            if (!streaming || done) {
-                if (buf.length > 0) processLine(JSON.parse(buf));
-            } else {
-                const chunk = decoder.decode(value, {
-                    stream: true
-                });
-                buf += chunk;
-
-                const parts = buf.split(matcher);
-                buf = parts.pop();
-                for (const i of parts) { //console.log(i);
-                    if (i) processLine(JSON.parse(i));
-                }
-                return loop();
-            }
-        });
-
-    return loop().then(() => { }); //console.log('the stream has completed');
-}
-
-function processGameUpdate(game_update) { console.log(game_update);
-    let data = game_update.state ? game_update.state.moves : game_update.moves;
-    if (data) {
-        current_game.reset();
-        let move_list = data.split(" "); //console.log(move_list);
-        for (let i = 0; i< move_list.length; i++) current_game.move(
-            {from: move_list[i].substr(0,2), to: move_list[i].substr(2,2) }
-        );
-        console.log(current_game.ascii());
-        updateFEN(current_game.fen());
+    else {
+        button.innerText = "Watch";
+        if (gameSock != null) gameSock.close();
     }
 }
 
-function playStream() {
-    if (play_stream) {
-        let melody = getMelody(current_game.history({ verbose: true }));
-        let t = playMelody(melody,2,8);
-        if (melody.length > 4) {
-            let chord = melody.slice(melody.length-4); playChord(chord,2); //console.log(chord);
-        }
-        window.setTimeout(playStream,t * 1000);
+function followLichess() {
+    if (!lichess) return;
+    user_id = document.getElementById("input_user_id").value;
+    if (gameSock === null && user_id !== "") {
+        console.log("Fetching User: " + user_id);
+        fetch("https://lichess.org/api/users/status?ids=" + user_id,
+            {headers:{'Accept':'application/json'}})
+            .then(response => response.text())
+            .then(text => JSON.parse(text))
+            .then(json => { //console.log(json);
+                if (json[0].playing) getGID();
+            });
+    }
+    if (lichess) setTimeout(followLichess,5000);
+}
+
+function getGID() {
+    fetch("https://lichess.org/api/user/" + user_id,{headers:{'Accept':'application/json'}})
+         .then(response => response.text())
+         .then(text => JSON.parse(text))
+         .then(json => initLichessSocket(getGIDFromURL(json.playing)));
+}
+
+function getGIDFromURL(url) {
+    console.log(url);
+    if (url === "undefined") return null;
+    let bits = url.split("/");
+    playingBlack = bits[bits.length-1].toLowerCase() === "black";
+    return bits[bits.length-2];
+}
+
+function setPlayers(json) {
+    console.log("Setting players for game: " + json.id);
+    if (json.id === current_gid) {
+        blackPlayer = getUser(json.players.black);
+        whitePlayer = getUser(json.players.white);
     }
 }
 
-function processEvent(event) { console.log(event);
-    if (event.type === "gameStart") { //streamGame(); //console.log("Following game: " + current_gid);
-        followGame(event.game.id);
-    }
+function getUser(json) {
+    if (json.user === undefined) return "AI Level " + json.aiLevel;
+    return (json.user.title ? json.user.title + " " : "") + json.user.name + " (" + json.rating + ")";
 }
 
-function getGID(username) {
-   // fetch('https://lichess.org/api/account/playing',
-   //     {headers:{'Accept':'application/json','Authorization':'Bearer ' + oauth}})
-   //     .then(response => response.json())
-   //     .then(data => followGame(data.nowPlaying[0].gameId));
-    fetch("https://lichess.org/@/" + username + "/playing",{headers:{'Accept':'application/html'}})
-         .then(response => response.text().then(text => getGameIDFromLichessProfile(text)))
-         .then(gid => followGame(gid));
-}
+function initLichessSocket(gid) {
+    if (gid == null) return; current_gid = gid;
+    current_game.reset(); //updateStatus("Beginning/resuming Game: " + current_gid);
 
-function getGameIDFromLichessProfile(html) {
-    let parser = new DOMParser().parseFromString(html,'text/html');
-    let e = parser.getElementsByClassName("game-row__overlay")[0];
-    let bits = e.href.split("/");
-    playingBlack = bits[bits.length-1].toLowerCase() == "black";
-    if (playingBlack) return bits[bits.length-2]; else return bits[bits.length-1];
-}
+    fetch("https://lichess.org/api/user/" + user_id + "/current-game",
+    {headers:{'Accept':'application/json'}})
+        .then(response => response.text())
+        .then(txt => JSON.parse(txt))
+        .then(json => setPlayers(json));
 
-function followGame(gid) {
-    current_gid = gid; current_game.reset();
-    updateStatus("Beginning/resuming Game: " + current_gid);
     let url = "wss://socket.lichess.org/watch/" + current_gid + "/black/v5?sri=zug999";
     gameSock = new WebSocket(url);
 
     gameSock.onopen = function(e) { //console.log("Open event: " + e);
-        updateStatus("New Game: " + current_gid);
-        pinger = setInterval(function() { gameSock.send("{\"t\":\"p\",\"v\":9999999}"); }, 2000);
+        //updateStatus("New Game: " + current_gid);
+        pinger = setInterval(function() {
+            if (gameSock.readyState === WebSocket.OPEN) gameSock.send("{\"t\":\"p\",\"v\":9999999}");
+        }, 2000);
     };
 
     gameSock.onclose = function(event) {
@@ -145,19 +94,26 @@ function followGame(gid) {
             console.log('[close] Connection died');
         }
         clearInterval(pinger);
+        gameSock = null;
     };
 
     gameSock.onmessage = function(event) {
-        console.log(`[message] Data received from server: ${event.data}`);
+        //console.log(`[message] Data received from server: ${event.data}`);
         let data = JSON.parse(event.data);
-        if (data.t && data.t === "move") {
-            updateFEN(data.d.fen + " w KQkq - 1 1");
-            timeDiff =  Math.round(
-           playingBlack ? (data.d.clock.black - data.d.clock.white) : (data.d.clock.white - data.d.clock.black));
-            console.log(timeDiff);
-
+        if (data.t) {
+            if (data.t === "move") {
+                //console.log(data);
+                updateFEN(data.d.fen + " w KQkq - 1 1");
+                let pct = playingBlack ? data.d.clock.black/data.d.clock.white : data.d.clock.white/data.d.clock.black;
+                setPlayTime(pct, playingBlack ? data.d.clock.black : data.d.clock.white);
+                updateGameStatus( blackPlayer + " " + data.d.clock.black + " vs.\n" +
+                whitePlayer + " " + data.d.clock.white);
+            }
+            else if (data.t === "end") {
+                console.log("Game finished");
+                gameSock.close(); //fen_loop = false;
+            }
         }
-
     }
 
     gameSock.onerror = function(error) {
@@ -165,14 +121,16 @@ function followGame(gid) {
     };
 }
 
-
-
-function onGameStreamClose() {
-    if (streaming) updateStatus("Finished Game: " + current_gid); console.log("Game Stream closed.");
-    current_game.reset();
+function updateGameStatus(msg) {
+    document.getElementById("StatusBox").textContent = msg;
+    //let status = document.getElementById("StatusBox");
+    //status.textContent += msg + "\n";
+    //status.scrollTop = status.scrollHeight;
 }
 
-function onEventStreamClose() {
-    updateStatus("Logout: " + user_id); console.log("Event Stream closed.");
-    toggleStream(false);
+function setPlayTime(pct, t) {
+    //let c = 60; playNote(pct > 1 ? orchestra[RHYTHM] : orchestra[HARMONY],0,c * pct, 1, .25);
+    timeFactor = pct;
+    timeRemaining = t;
 }
+
