@@ -17,7 +17,9 @@ const RHYTHMS = [TRIPLET,DUPLE,QUARTER,2,3,4,6,8,12,16,24,36];
 const MOVE="Move", PAWN_STR="Pawn", CAPTURE="Capture", HARMONY = "Harmony", RHYTHM = "Rhythm";
 const INSTRUMENTS = [MOVE,PAWN_STR,CAPTURE,HARMONY,RHYTHM];
 const DEFAULT_INSTRUMENTS = [70,46,44,45,12];
+const DEFAULT_PERCUSSION = [1192,1200,1209,1217,1228,1241,1252,1262];
 const orchestra = [];
+const drum_set = [];
 const game = new Chess();
 const board = Chessboard('mainBoard', 'start')
 let moves, move_num;
@@ -35,18 +37,30 @@ let last_loop_ply = 0;
 let pattern_length = 4;
 let pawn_chord = [];
 let pawn_chord_range = 32;
+let chk_mute = document.getElementById("chk_mute");
+let chk_pawn_chord = document.getElementById("chk_pawn_chord");
+let chk_pawn_perc = document.getElementById("chk_pawn_perc");
+
 
 const AudioContextFunc = window.AudioContext || window.webkitAudioContext;
 let audioContext = new AudioContextFunc();
 const player = new WebAudioFontPlayer();
-player.loader.decodeAfterLoading(audioContext, '_drum_42_6_JCLive_sf2_file');
-player.loader.decodeAfterLoading(audioContext, '_tone_0320_Chaos_sf2_file');
+
+//<script src='https://surikov.github.io/webaudiofontdata/sound/0320_Chaos_sf2_file.js'></script>
+//<script src='https://surikov.github.io/webaudiofontdata/sound/12842_6_JCLive_sf2_file.js'></script>
+//<script src='https://surikov.github.io/webaudiofontdata/sound/12835_0_SBLive_sf2.js'></script>
+//<script src='https://surikov.github.io/webaudiofontdata/sound/12838_0_SBLive_sf2.js'></script>
+//<script src='https://surikov.github.io/webaudiofontdata/sound/12842_0_SBLive_sf2.js'></script>
+//player.loader.decodeAfterLoading(audioContext, '_drum_42_6_JCLive_sf2_file');
+//player.loader.decodeAfterLoading(audioContext, '_tone_0320_Chaos_sf2_file');
+
 
 window.onload = function() {
     for (let i = 0; i<INSTRUMENTS.length; i++) {
         createInstrumentSelection(i,DEFAULT_INSTRUMENTS[i]);
         loadInstrument(INSTRUMENTS[i]);
     }
+    loadDrumSet();
     //setMode();
     setTempo();
     setVolume();
@@ -83,14 +97,14 @@ function clearNotes() {
 }
 
 //TODO: percussion map for pawns?!
-function playNewPawnChord(notes, bass) {  //console.log(notes);
+function playNewPawnChord(pawns, bass) {  //console.log(notes);
     for (let i = 0; i < pawn_chord_range; i++)  {
         let sounding = false;
-        for (let n = 0; n < notes.length; n++) {
-            if (notes[n] === i) {
+        for (let n = 0; n < pawns.length; n++) {
+            if (pawns[n].pitch === i) {
                 sounding = true;
                 if (pawn_chord[i] == null) { //console.log("New Note: " + i);
-                    pawn_chord[i] = playNote(orchestra[PAWN_STR], 0, notes[n] + bass, 999, volume);
+                    pawn_chord[i] = playNote(orchestra[PAWN_STR], 0, pawns[n].pitch + bass, 999, volume);
                 }
                 break;
             }
@@ -99,6 +113,13 @@ function playNewPawnChord(notes, bass) {  //console.log(notes);
             pawn_chord[i].cancel(); //TODO: does this work?
             pawn_chord[i] = null;
         }
+    }
+}
+
+function playPawnDrumMap(map) {
+    let t = (tempo/1000) * (pattern_length/map.length);
+    for (let i=0;i<map.length;i++) { //console.log(map[i]);
+        playNote(drum_set[map[i].drum], audioContext.currentTime + (t * map[i].beat), 60, 1, volume);
     }
 }
 
@@ -138,7 +159,7 @@ function playCurrentFEN() {
     if (lichess && timeRemaining<10) countdown(72,4);
     let fen_str = current_FEN.split(" ")[0].split("/");
     let mode = last_pawn_push; //console.log(last_pawn_push);
-    let notes = []; let pawns = [];
+    let notes = []; let pawns = []; let drum_map = [];
     for (let i=0; i<fen_str.length; i++) notes[i] = [];
     for (let rank = 0; rank < fen_str.length; rank++) {
         let file = 0;
@@ -147,26 +168,29 @@ function playCurrentFEN() {
             let piece = PIECE_CODE.indexOf(piece_char);
             let piece_type = PIECE_CODE.indexOf(piece_char.toLowerCase());
             let piece_color = getPieceColor(piece);
-            if (piece_type === EMPTY) {  //for (let i=0;i<empty_squares;i++) notes[file + i].push(-1);
+            if (piece_type === EMPTY) {
                 let empty_squares = parseInt(fen_str[rank].charAt(i));
                 file += empty_squares;
             }
             else {
                 let adj_rank = piece_color === "w" ? 7-rank : rank; //descriptive style ranks
                 if (piece_type === PAWN) {
-                    if (adj_rank > 1) pawns.push(MODES[mode][file] + 12);
-                    if (adj_rank > 0) pawns.push(MODES[mode][adj_rank-1]);
+                    if (adj_rank > 1) pawns.push({ pitch : MODES[mode][file] + 12 });
+                    if (adj_rank > 0) pawns.push({ pitch : MODES[mode][adj_rank-1] });
+                    drum_map.push({ color : piece_color, drum : rank, beat : file });
                 }
-                else { //notes[file].push(piece + MODES[piece_type][adj_rank] + 48);
+                else {
                     let p = (piece_type === KING) ? 7 : piece_color === "w" ? piece_type - 1 : (piece_type - 1) + 4;
                     notes[file].push({piece_type: piece_type,piece:MODES[mode][p],rank:MODES[mode][adj_rank]});
                 }
                 file++;
             }
         }
-    }
-    //console.log(notes);
-    playNewPawnChord(pawns,60);
+    } //console.log(notes);
+
+    if (chk_pawn_perc.checked) playPawnDrumMap(drum_map);
+    if (chk_pawn_chord.checked) playNewPawnChord(pawns,60);
+
     let t = (tempo/1000) * (pattern_length/notes.length);
     for (let i = 0; i < notes.length; i++) {
         for (let n = 0; n < notes[i].length; n++) {
@@ -176,6 +200,7 @@ function playCurrentFEN() {
             playNote(orchestra[RHYTHM],audioContext.currentTime + (t * i),p,t,volume);
         }
     }
+
 }
 
 function togglePGN() {
@@ -208,14 +233,14 @@ function loopPGN() {
 }
 
 function playMove() { //console.log("Playing: " + moves[move_num].from + moves[move_num].to);
-    let mute = document.getElementById("chk_mute").checked;
+    let mute = chk_mute.checked;
     let pitches = getPitches(moves[move_num]);
     if (moves[move_num].color === "b") {
         for (let i=0;i<pitches.length;i++) pitches[i] = 7-pitches[i]; //if (i % 2 == 1)
     }
     let dist = calcDist(pitches); //console.log("Distance:  " + dist);
     let t = tempo/1000;
-    if (alberti && !mute) playAlbertiBass(CHORDS[PIECE_CODE.indexOf(moves[move_num].piece)]);
+    if (alberti) playAlbertiBass(CHORDS[PIECE_CODE.indexOf(moves[move_num].piece)]);
 
     if (moves[move_num].captured) {
         current_key = 60 + PIECE_CODE.indexOf(moves[move_num].piece);
@@ -417,6 +442,14 @@ function loadInstrument(type) {
     let info = player.loader.instrumentInfo(i);
     player.loader.startLoad(audioContext, info.url, info.variable);
     player.loader.waitLoad(function () { orchestra[type] = window[info.variable]; });
+}
+
+function loadDrumSet() {
+    for (let i=0;i<8;i++) {
+        let info = player.loader.instrumentInfo(DEFAULT_PERCUSSION[i]);
+        player.loader.startLoad(audioContext, info.url, info.variable);
+        player.loader.waitLoad(function () { drum_set[i++] = window[info.variable]; });
+    }
 }
 
 function setTempo() {

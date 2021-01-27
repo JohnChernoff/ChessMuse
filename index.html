@@ -4,8 +4,6 @@
   <link rel="stylesheet" href="css/style.css"/>
   <link rel="stylesheet" href="css/chessboard-1.0.0.css"/>
   <title>Chess Sonifier 0.1</title>
-  <script src='https://surikov.github.io/webaudiofontdata/sound/0320_Chaos_sf2_file.js'></script>
-  <script src='https://surikov.github.io/webaudiofontdata/sound/12842_6_JCLive_sf2_file.js'></script>
   <script type="text/javascript" src="js/WebAudioFontPlayer.js"></script>
   <script type="text/javascript" src="js/jquery-3.5.0.js"></script>
   <script type="text/javascript" src="js/chess.js"></script>
@@ -15,15 +13,29 @@
  <body>
     <div id = "opt_box">
         <div id = "timbre_box"> </div>
-        <input type="checkbox" id="chk_mute">
-        <label for="chk_mute"> Mute Melody </label>
-        <br><br>
-        <label id="lab_tempo" for="range_tempo"> Tempo: 120 </label> <br>
-        <input id="range_tempo" type="range" min="12" max="240" value="120" onchange="setTempo()" >
-        <br><br>
-        <label id="lab_volume" for="range_volume"> Volume: 50% </label> <br>
-        <input id="range_volume" type="range" min="1" max="100" value="50" onchange="setVolume()" >
-        <br><br>
+
+        <div id = "chk_box">
+            <input type="checkbox" id="chk_mute">
+            <label for="chk_mute"> Mute Melody </label>
+            <br>
+            <input type="checkbox" id="chk_pawn_chord">
+            <label for="chk_mute"> Pawn Structure Harmony </label>
+            <br>
+            <input type="checkbox" id="chk_pawn_perc">
+            <label for="chk_mute"> Pawn Structure Rhythm </label>
+        </div>
+
+        <br>
+
+        <div id = "range_box">
+            <label id="lab_tempo" for="range_tempo"> Tempo: 120 </label> <br>
+            <input id="range_tempo" type="range" min="12" max="240" value="120" onchange="setTempo()" >
+            <br>
+            <label id="lab_volume" for="range_volume"> Volume: 50% </label> <br>
+            <input id="range_volume" type="range" min="1" max="100" value="50" onchange="setVolume()" >
+            <br><br>
+        </div>
+
         <label for="pgnBox">PGN (Portable Game Notation) text:</label><br>
         <textarea id="pgnBox" rows="8" cols="50">
 [Event "20th Montcada Open"]
@@ -48,26 +60,26 @@ Nxe4 17. Nxe4 Bxe4 18. Be2 b3 19. Rc1 bxc2+ 20. Ka1 Qb7
 0-1
         </textarea>
         <br><br>
+
         <label for="input_fen">FEN (Forsyth-Edwards Notation) position:</label><br>
         <input type=text id="input_fen" size="48" value="r1bqk2r/pppnppbp/3p1np1/8/2BP1P2/4PN2/PPP3PP/RNBQK2R w KQkq - 5 6">
         <br><br>
-
-
         <button type="button" id="pgn_butt" value = " playPGN " onclick="togglePGN()"> Play PGN </button>
-        <button type="button" id="rnd_butt" value = "randomize" onclick="randomizeOrchestra(false)"> Randomize </button>
-        <button type="button" id="def_butt" value = "defaults" onclick="randomizeOrchestra(true)"> Defaults </button>
+        <button type="button" id="rnd_butt" value = "randomize" onclick="randomizeOrchestra(false)"> Randomize Instruments </button>
+        <button type="button" id="def_butt" value = "defaults" onclick="randomizeOrchestra(true)"> Default Instruments </button>
         <br><br>
         <label for="input_user_id">Lichess Handle:</label><br>
         <input type="text" id="input_user_id" value = "ZugAddict" rows="1" cols="24">
         <button type="button" id="lichess_butt" value = "lichess" onclick="toggleLichess()"> Watch </button>
         <button type="button" id="fen_butt" value = "fen" onclick="toggleFEN()"> FEN Loop </button>
         <br><br>
-        <textarea id="StatusBox" readonly rows="2" cols="48"> </textarea>
 
     </div>
 
   <div id="display">
-    <div id="mainBoard" ></div>
+      <textarea class = "status_box" id="white_box" readonly rows="2" cols="48"> </textarea>
+      <div id="mainBoard" ></div>
+      <textarea class = "status_box" id="black_box" readonly rows="2" cols="48"> </textarea>
   </div>
 
  <script type="text/javascript" src="js/chess_sonifier.js"></script>

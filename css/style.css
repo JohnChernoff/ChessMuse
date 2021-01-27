@@ -26,10 +26,13 @@ body {
 }
 
 #mainBoard {
-   width: 50%;
-   height: 50%;
+   width: 800px;
 }
 
+.status_box {
+   background-color: black;
+   color: aliceblue;
+}
 
 textarea {
    color: black;

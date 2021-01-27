@@ -68,7 +68,7 @@ function getUser(json) {
 
 function initLichessSocket(gid) {
     if (gid == null) return; current_gid = gid;
-    current_game.reset(); //updateStatus("Beginning/resuming Game: " + current_gid);
+    current_game.reset(); //console.log("Beginning/resuming Game: " + current_gid);
 
     fetch("https://lichess.org/api/user/" + user_id + "/current-game",
     {headers:{'Accept':'application/json'}})
@@ -106,8 +106,7 @@ function initLichessSocket(gid) {
                 setCurrentFEN(data.d.fen + " w KQkq - 1 1");
                 let pct = playingBlack ? data.d.clock.black/data.d.clock.white : data.d.clock.white/data.d.clock.black;
                 setPlayTime(pct, playingBlack ? data.d.clock.black : data.d.clock.white);
-                updateGameStatus( blackPlayer + " " + data.d.clock.black + " vs.\n" +
-                whitePlayer + " " + data.d.clock.white);
+                updateGameStatus(blackPlayer + " " + data.d.clock.black , whitePlayer + " " + data.d.clock.white);
             }
             else if (data.t === "end") {
                 console.log("Game finished");
@@ -121,15 +120,15 @@ function initLichessSocket(gid) {
     };
 }
 
-function updateGameStatus(msg) {
-    document.getElementById("StatusBox").textContent = msg;
+function updateGameStatus(white,black) {
+    document.getElementById("white_box").textContent = white;
+    document.getElementById("black_box").textContent = black;
     //let status = document.getElementById("StatusBox");
     //status.textContent += msg + "\n";
     //status.scrollTop = status.scrollHeight;
 }
 
 function setPlayTime(pct, t) {
-    //let c = 60; playNote(pct > 1 ? orchestra[RHYTHM] : orchestra[HARMONY],0,c * pct, 1, .25);
     timeFactor = pct;
     timeRemaining = t;
 }
