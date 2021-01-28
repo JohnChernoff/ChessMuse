@@ -76,7 +76,8 @@ function initLichessSocket(gid) {
         .then(txt => JSON.parse(txt))
         .then(json => setPlayers(json));
 
-    let url = "wss://socket.lichess.org/watch/" + current_gid + "/black/v5?sri=zug999";
+    let url = "wss://socket.lichess.org/watch/" + current_gid + "/black/v6?sri=zug" + Math.floor((Math.random() * 999)) + "&v=1";
+    console.log("Attempting connection to: " + url);
     gameSock = new WebSocket(url);
 
     gameSock.onopen = function(e) { //console.log("Open event: " + e);
