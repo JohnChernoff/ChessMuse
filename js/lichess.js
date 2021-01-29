@@ -1,7 +1,8 @@
 let current_game = new Chess();
-let user_id, current_gid;
-let gameSock = null;
-let pinger = null;
+let user_id = null;
+let current_gid = null;
+let lichSock = null;
+let queue = [];
 let playingBlack = false;
 let timeDiff = 0;
 let lichess = false;
@@ -14,18 +15,17 @@ function toggleLichess() {
     lichess = !lichess;
     if (lichess) {
         button.innerText = "UnWatch";
-        followLichess();
+        followLichessHandle();
     }
     else {
-        button.innerText = "Watch";
-        if (gameSock != null) gameSock.close();
+        button.innerText = "Watch"; //TODO: unfollow
     }
 }
 
-function followLichess() {
+function followLichessHandle() {
     if (!lichess) return;
     user_id = document.getElementById("input_user_id").value;
-    if (gameSock === null && user_id !== "") {
+    if (current_gid === null && user_id !== "") {
         console.log("Fetching User: " + user_id);
         fetch("https://lichess.org/api/users/status?ids=" + user_id,
             {headers:{'Accept':'application/json'}})
@@ -35,14 +35,14 @@ function followLichess() {
                 if (json[0].playing) getGID();
             });
     }
-    if (lichess) setTimeout(followLichess,5000);
+    if (lichess) setTimeout(followLichessHandle,5000);
 }
 
 function getGID() {
     fetch("https://lichess.org/api/user/" + user_id,{headers:{'Accept':'application/json'}})
          .then(response => response.text())
          .then(text => JSON.parse(text))
-         .then(json => initLichessSocket(getGIDFromURL(json.playing)));
+         .then(json => followGame(getGIDFromURL(json.playing))); //initLichessSocket(getGIDFromURL(json.playing)));
 }
 
 function getGIDFromURL(url) {
@@ -51,6 +51,20 @@ function getGIDFromURL(url) {
     let bits = url.split("/");
     playingBlack = bits[bits.length-1].toLowerCase() === "black";
     return bits[bits.length-2];
+}
+
+function followGame(gid) {
+    if (gid == null) return; current_gid = gid;
+    current_game.reset(); console.log("Beginning/resuming Game: " + current_gid);
+
+    fetch("https://lichess.org/api/user/" + user_id + "/current-game",
+        {headers:{'Accept':'application/json'}})
+        .then(response => response.text())
+        .then(txt => JSON.parse(txt))
+        .then(json => setPlayers(json));
+
+    let message = JSON.stringify({ t: 'startWatching', d: current_gid });
+    send(lichSock, message);
 }
 
 function setPlayers(json) {
@@ -66,59 +80,57 @@ function getUser(json) {
     return (json.user.title ? json.user.title + " " : "") + json.user.name + " (" + json.rating + ")";
 }
 
-function initLichessSocket(gid) {
-    if (gid == null) return; current_gid = gid;
-    current_game.reset(); //console.log("Beginning/resuming Game: " + current_gid);
+function send(sock, message) {
+    if (sock.readyState === 1) sock.send(message); else queue.push(message);
+}
 
-    fetch("https://lichess.org/api/user/" + user_id + "/current-game",
-    {headers:{'Accept':'application/json'}})
-        .then(response => response.text())
-        .then(txt => JSON.parse(txt))
-        .then(json => setPlayers(json));
+function runLichessSocket() {
+    const baseURL = 'wss://socket.lichess.org';
+    const endpoint = '/api/socket';
+    const url = baseURL + endpoint;
+    lichSock = new WebSocket(url);
 
-    let url = "wss://socket.lichess.org/watch/" + current_gid + "/black/v6?sri=zug" + Math.floor((Math.random() * 999)) + "&v=1";
-    console.log("Attempting connection to: " + url);
-    gameSock = new WebSocket(url);
-
-    gameSock.onopen = function(e) { //console.log("Open event: " + e);
-        //updateStatus("New Game: " + current_gid);
-        pinger = setInterval(function() {
-            if (gameSock.readyState === WebSocket.OPEN) gameSock.send("{\"t\":\"p\",\"v\":9999999}");
-        }, 2000);
-    };
-
-    gameSock.onclose = function(event) {
-        console.log("Socket closed on game: " + current_gid);
-        if (event.wasClean) {
-            console.log(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
-        } else { // e.g. server process killed or network down (event.code is usually 1006 in this case)
-            console.log('[close] Connection died');
+    lichSock.onopen = function () {
+        console.log("Connected to Lichess...");
+        while (queue.length > 0) {
+            let message = queue.pop();
+            lichSock.send(message);
         }
-        clearInterval(pinger);
-        gameSock = null;
-    };
+    }
 
-    gameSock.onmessage = function(event) {
-        //console.log(`[message] Data received from server: ${event.data}`);
-        let data = JSON.parse(event.data);
+    lichSock.onerror = function (error) { console.error(error); }
+
+    lichSock.onmessage = function (e) { //console.log(("Message: ") + e.data);
+        let data = JSON.parse(e.data);
         if (data.t) {
-            if (data.t === "move") {
+            if (data.t === "fen") {
                 //console.log(data);
                 setCurrentFEN(data.d.fen + " w KQkq - 1 1");
-                let pct = playingBlack ? data.d.clock.black/data.d.clock.white : data.d.clock.white/data.d.clock.black;
-                setPlayTime(pct, playingBlack ? data.d.clock.black : data.d.clock.white);
-                updateGameStatus(blackPlayer + " " + data.d.clock.black , whitePlayer + " " + data.d.clock.white);
+                let pct = playingBlack ? data.d.bc/data.d.wc : data.d.wc/data.d.bc;
+                setPlayTime(pct, playingBlack ? data.d.bc : data.d.wc);
+                updateGameStatus(blackPlayer + " " + data.d.bc , whitePlayer + " " + data.d.wc);
             }
-            else if (data.t === "end") {
+            else if (data.t === "finish") {
                 console.log("Game finished");
-                gameSock.close(); //fen_loop = false;
+                current_gid = null;
             }
         }
     }
 
-    gameSock.onerror = function(error) {
-        console.log(`[error] ${error.message}`);
-    };
+    lichSock.onclose = function () {
+        //runLichessSocket(); followGame(current_gid);
+    }
+}
+
+function lichessLogin() {
+    window.location = "http://localhost:8087";
+    /* fetch("http://localhost:8087/auth",
+        {
+            //mode: 'cors',
+            headers:{'Accept':'application/json'} //, 'Access-Control-Allow-Origin':'*'}
+        })
+        .then(response => response.json())
+        .then(txt => console.log(txt)); */
 }
 
 function updateGameStatus(white,black) {
@@ -133,4 +145,6 @@ function setPlayTime(pct, t) {
     timeFactor = pct;
     timeRemaining = t;
 }
+
+runLichessSocket();
 
