@@ -156,7 +156,7 @@ function loopFEN() {
 }
 
 function playCurrentFEN() {
-    if (lichess && timeRemaining<10) countdown(72,4);
+    if (following && timeRemaining<10) countdown(72,4);
     let fen_str = current_FEN.split(" ")[0].split("/");
     let mode = last_pawn_push; //console.log(last_pawn_push);
     let notes = []; let pawns = []; let drum_map = [];
@@ -195,7 +195,7 @@ function playCurrentFEN() {
     for (let i = 0; i < notes.length; i++) {
         for (let n = 0; n < notes[i].length; n++) {
             let p = notes[i][n].rank + (((notes[i][n].piece_type-1) * 12) +
-            lichess ? (timeFactor > 1 ? 80 - Math.round(8 * (1/timeFactor)) : 36 + Math.round(36 * timeFactor))
+            following ? (timeFactor > 1 ? 80 - Math.round(8 * (1/timeFactor)) : 36 + Math.round(36 * timeFactor))
             : 48);
             playNote(orchestra[RHYTHM],audioContext.currentTime + (t * i),p,t,volume);
         }
@@ -388,7 +388,7 @@ function pawnCount(fen) {
 }
 
 function playNote(i,t,p,d,v,mute) { //console.log(i + "," + t + "," + p + "," + d + "," + v +"," + mute);
-    if (!mute && (lichess || pgn_loop || fen_loop))
+    if (!mute && (following || pgn_loop || fen_loop))
         return player.queueWaveTable(audioContext, audioContext.destination, i,t,p,d,v);
     else return null;
 }

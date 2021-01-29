@@ -3,17 +3,17 @@ let user_id = null;
 let current_gid = null;
 let lichSock = null;
 let queue = [];
+let following = false;
 let playingBlack = false;
-let timeDiff = 0;
-let lichess = false;
 let blackPlayer = "", whitePlayer = "";
-let timeFactor = 1;
-let timeRemaining = 999;
+let timeFactor = 1, timeRemaining = 999; //let timeDiff = 0;
+
+runLichessSocket();
 
 function toggleLichess() {
     let button = document.getElementById("lichess_butt");
-    lichess = !lichess;
-    if (lichess) {
+    following = !following;
+    if (following) {
         button.innerText = "UnWatch";
         followLichessHandle();
     }
@@ -23,7 +23,7 @@ function toggleLichess() {
 }
 
 function followLichessHandle() {
-    if (!lichess) return;
+    if (!following) return;
     user_id = document.getElementById("input_user_id").value;
     if (current_gid === null && user_id !== "") {
         console.log("Fetching User: " + user_id);
@@ -35,7 +35,7 @@ function followLichessHandle() {
                 if (json[0].playing) getGID();
             });
     }
-    if (lichess) setTimeout(followLichessHandle,5000);
+    if (following) setTimeout(followLichessHandle,5000);
 }
 
 function getGID() {
@@ -122,16 +122,11 @@ function runLichessSocket() {
     }
 }
 
-function lichessLogin() {
-    window.location = "http://localhost:8087";
-    /* fetch("http://localhost:8087/auth",
-        {
-            //mode: 'cors',
-            headers:{'Accept':'application/json'} //, 'Access-Control-Allow-Origin':'*'}
-        })
-        .then(response => response.json())
-        .then(txt => console.log(txt)); */
+function setPlayTime(pct, t) {
+    timeFactor = pct;
+    timeRemaining = t;
 }
+
 
 function updateGameStatus(white,black) {
     document.getElementById("white_box").textContent = white;
@@ -140,11 +135,3 @@ function updateGameStatus(white,black) {
     //status.textContent += msg + "\n";
     //status.scrollTop = status.scrollHeight;
 }
-
-function setPlayTime(pct, t) {
-    timeFactor = pct;
-    timeRemaining = t;
-}
-
-runLichessSocket();
-
