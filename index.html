@@ -14,15 +14,25 @@
     <div id = "opt_box">
         <div id = "timbre_box"> </div>
 
+        <button type="button" id="rnd_butt" value = "randomize" onclick="randomizeOrchestra(false)"> Randomize Instruments </button>
+        <button type="button" id="def_butt" value = "defaults" onclick="randomizeOrchestra(true)"> Default Instruments </button>
+        <br><br>
+
         <div id = "chk_box">
-            <input type="checkbox" id="chk_mute">
-            <label for="chk_mute"> Mute Melody </label>
+            <input type="checkbox" id="chk_mute_pgn">
+            <label for="chk_mute_pgn"> Mute PGN Melody </label>
+            <br>
+            <input type="checkbox" id="chk_mute_lichess">
+            <label for="chk_mute_lichess"> Mute Lichess Melody </label>
             <br>
             <input type="checkbox" id="chk_pawn_chord">
-            <label for="chk_mute"> Pawn Structure Harmony </label>
+            <label for="chk_pawn_chord"> Pawn Structure Harmony </label>
             <br>
             <input type="checkbox" id="chk_pawn_perc">
-            <label for="chk_mute"> Pawn Structure Rhythm </label>
+            <label for="chk_pawn_perc"> Pawn Structure Rhythm </label>
+            <br>
+            <input type="checkbox" id="chk_pawn_bass">
+            <label for="chk_pawn_bass"> Pawn Structure Bass </label>
         </div>
 
         <br>
@@ -63,18 +73,18 @@ Nxe4 17. Nxe4 Bxe4 18. Be2 b3 19. Rc1 bxc2+ 20. Ka1 Qb7
 
         <label for="input_fen">FEN (Forsyth-Edwards Notation) position:</label><br>
         <input type=text id="input_fen" size="48" value="r1bqk2r/pppnppbp/3p1np1/8/2BP1P2/4PN2/PPP3PP/RNBQK2R w KQkq - 5 6">
-        <br><br>
-        <button type="button" id="pgn_butt" value = " playPGN " onclick="togglePGN()"> Play PGN </button>
-        <button type="button" id="rnd_butt" value = "randomize" onclick="randomizeOrchestra(false)"> Randomize Instruments </button>
-        <button type="button" id="def_butt" value = "defaults" onclick="randomizeOrchestra(true)"> Default Instruments </button>
-        <br><br>
-        <label for="input_user_id">Lichess Handle:</label><br>
-        <input type="text" id="input_user_id" value = "ZugAddict" rows="1" cols="24">
-        <button type="button" id="lichess_butt" value = "lichess" onclick="toggleLichess()"> Watch </button>
         <button type="button" id="fen_butt" value = "fen" onclick="toggleFEN()"> FEN Loop </button>
         <br><br>
-        <button type="button" id="log_butt" value = "lichess_login" onclick="lichessLogin()"> Login to Lichess </button>
-
+        <label for="select_mode">Play Mode:</label>
+        <select id="select_mode" onchange="mode_change()">
+            <option value="off">None</option>
+            <option value="pgn">PGN</option>
+            <option value="follow">Follow</option>
+            <option value="tv">TV</option>
+        </select> <br><br>
+        <label for="input_user_id">Lichess Handle:</label>
+        <input type="text" id="input_user_id" value = "ZugAddict" rows="1" cols="24">
+        <br><br>
     </div>
 
   <div id="display">
