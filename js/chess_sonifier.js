@@ -16,7 +16,7 @@ const TRIPLET = -3, DUPLE = -2, QUARTER = 1;
 const RHYTHMS = [TRIPLET,DUPLE,QUARTER,2,3,4,6,8,12,16,24,36];
 const MOVE="Move", PAWN_PATCH="Pawn", CAPTURE="Capture", HARMONY = "Harmony", RHYTHM = "Rhythm";
 const INSTRUMENTS = [MOVE,PAWN_PATCH,CAPTURE,HARMONY,RHYTHM];
-const DEFAULT_INSTRUMENTS = [70,35,44,45,12];
+const DEFAULT_INSTRUMENTS = [70,38,44,45,63]; //12];
 const DEFAULT_PERCUSSION = [1192,1200,1209,1217,1228,1241,1252,1262];
 const orchestra = [];
 const drum_set = [];
@@ -40,6 +40,7 @@ let pattern_length = 4;
 let pawn_chord = [];
 let pawn_chord_range = 32;
 let fen_melody = { pitch: 60, wave: null };
+let chk_mute_fen = document.getElementById("chk_mute_fen");
 let chk_mute_lichess = document.getElementById("chk_mute_lichess");
 let chk_mute_pgn = document.getElementById("chk_mute_pgn");
 let chk_pawn_chord = document.getElementById("chk_pawn_chord");
@@ -115,13 +116,23 @@ function setCurrentFEN(fen) {
 }
 
 function playFEN(fen, move) {
-    current_game.load(fen); //console.log("Move: " + move);
-    let from = move.substring(0,2), to = move.substring(2,4); //let p = current_game.get(to);
-    let dist =
-        Math.round(calcDist(getMoveMatrix({ from: from, to: to } )) * (current_game.turn() == "w" ? -1 : 1));
-    fen_melody.pitch += dist;
+    current_game.load(fen); console.log("Move: " + move);
+    let from = move.substring(0,2), to = move.substring(2,4); let p = current_game.get(to);
+    let mat = getMoveMatrix({ from: from, to: to } );
+    let y = mat[1]-mat[3];
+    let dir = y > 0 ? -1 : y == 0 ? 0 : 1;
+    let dist = calcDist(mat); //console.log(dist);
+    //let interval = dist * Math.ceil(current_game.turn() == "w" ? -1 : 1);
+    //let interval = Math.round(dist * (current_game.turn() == "w" ? -2 : 2));
+    let i = p !== null ? PIECE_CODE.indexOf(p.type) : 0; //console.log(i);
+    let interval = 0;
+    if (dir == 0) interval = Math.floor(i + dist) * (current_game.turn() == "w" ? -1 : 1);
+    else interval = Math.floor(i + dist) * dir;
+    console.log("Interval: " + interval);
+    fen_melody.pitch += interval;
     if (fen_melody.wave !== null) fen_melody.wave.cancel();
-    fen_melody.wave = playNote(orchestra[MOVE],audioContext.currentTime,fen_melody.pitch,999,.25);
+    fen_melody.wave = playNote(orchestra[MOVE],audioContext.currentTime,fen_melody.pitch,8,volume);
+    //console.log("Pitch: " + fen_melody.pitch);
 }
 
 function toggleFEN() {
@@ -189,16 +200,20 @@ function playCurrentFEN() {
     if (chk_pawn_perc.checked) playPawnDrumMap(drum_map);
     if (chk_pawn_chord.checked) playNewPawnChord(pawns,60);
     if (chk_pawn_bass.checked) playPawnBassline(pawn_bass);
-
-    let t = (tempo/1000) * (pattern_length/notes.length);
-    for (let i = 0; i < notes.length; i++) {
-        for (let n = 0; n < notes[i].length; n++) {
-            let key = getKey(); let p = notes[i][n].note + ((notes[i][n].octave-1) * 12) + key;
-            //console.log("Key: " + key + ", pitch: " + p);
-            playNote(orchestra[RHYTHM],audioContext.currentTime + (t * i),p,t,volume);
+    if (!chk_mute_fen.checked) {
+        let t = (tempo/1000) * (pattern_length/notes.length);
+        for (let i = 0; i < notes.length; i++) {
+            for (let n = 0; n < notes[i].length; n++) {
+                let key = getKey(); let p = notes[i][n].note + ((notes[i][n].octave-1) * 12) + key;
+                //console.log("Key: " + key + ", pitch: " + p);
+                playNote(orchestra[RHYTHM],audioContext.currentTime + (t * i),p,t,volume);
+            }
         }
     }
+
 }
+
+
 
 function playNewPawnChord(pawns, bass) {  //console.log(notes);
     for (let i = 0; i < pawn_chord_range; i++)  {
@@ -232,7 +247,7 @@ function playPawnBassline(pawn_bass) {
         //console.log("Playing pawn bassline for beat #" + beat + ": " + pawn_bass[beat]);
         for (let n = 0; n < pawn_bass[beat].length; n++) { //console.log("Pawn Bass: " + i + ": "+pawn_bass[i][n].note);
             let p = pawn_bass[beat][n].note + getKey();
-            playNote(orchestra[PAWN_PATCH],audioContext.currentTime + (t * beat),p,t,volume);
+            playNote(orchestra[PAWN_PATCH],audioContext.currentTime + (t * beat),p,t, volume);
         }
     }
 }

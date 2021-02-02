@@ -121,7 +121,7 @@ function runLichessSocket() {
             }
             else if (data.t === "finish") {
                 console.log("Game finished");
-                current_gid = null;
+                current_gid = null; fen_melody.pitch = 60;
                 if (play_mode === MODE_LICHESS_TV) startTV();
             }
         }
